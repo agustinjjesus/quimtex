@@ -443,7 +443,7 @@ const DIAS_ALERTA = 7;
 let BIN_ID  = localStorage.getItem('qx_bin_id')  || '';
 let API_KEY = localStorage.getItem('qx_api_key') || '';
 
-let ventas=[], ventas_deudores=[];
+let ventas=[], ventas_deudores=[], cuentas=[];
 let usuarioActual=null, pinBuffer='', pinTarget=null;
 let pagoSel='efectivo', pagoEstado='si';
 
@@ -503,6 +503,7 @@ async function cloudLoad(){
     const d=await r.json();
     ventas=d.record.ventas||[];
     ventas_deudores=d.record.deudores||[];
+    cuentas=d.record.cuentas||[];
     localStorage.setItem('qx_bk_v',JSON.stringify(ventas));
     localStorage.setItem('qx_bk_d',JSON.stringify(ventas_deudores));
     setSyncStatus('ok');
@@ -568,6 +569,7 @@ async function guardarConfig(){
     BIN_ID=bin;API_KEY=key;
     ventas=d.record.ventas||[];
     ventas_deudores=d.record.deudores||[];
+    cuentas=d.record.cuentas||[];
     localStorage.setItem('qx_bk_v',JSON.stringify(ventas));
     localStorage.setItem('qx_bk_d',JSON.stringify(ventas_deudores));
     document.getElementById('setup-screen').style.display='none';
