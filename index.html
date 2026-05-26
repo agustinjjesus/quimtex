@@ -384,15 +384,11 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
       </div>
     </div>
     <div class="fr">
-      <label>¿Quedó con saldo?</label>
-      <select id="v-deuda" onchange="toggleDeudaMonto()">
-        <option value="no">No, pagó completo</option>
-        <option value="si">Sí, quedó debiendo</option>
-      </select>
-    </div>
-    <div id="v-deuda-monto-row" class="fr" style="display:none">
-      <label>Monto adeudado ($)</label>
-      <input type="number" id="v-deuda-monto" placeholder="0.00" step="0.01" min="0"/>
+      <label>¿Pagó?</label>
+      <div style="display:flex;gap:8px">
+        <div id="btn-pago-si" class="tipo-tab sel-p" onclick="setPagoEstado('si')" style="flex:1;text-align:center">✅ Pagó</div>
+        <div id="btn-pago-no" class="tipo-tab" onclick="setPagoEstado('no')" style="flex:1;text-align:center">❌ No pagó</div>
+      </div>
     </div>
     <button class="btn btn-p" onclick="guardarVenta()">Guardar venta</button>
   </div>
@@ -438,7 +434,13 @@ let API_KEY = localStorage.getItem('qx_api_key') || '';
 
 let ventas=[], ventas_deudores=[];
 let usuarioActual=null, pinBuffer='', pinTarget=null;
-let pagoSel='efectivo';
+let pagoSel='efectivo', pagoEstado='si';
+
+function setPagoEstado(v){
+  pagoEstado=v;
+  document.getElementById('btn-pago-si').className='tipo-tab'+(v==='si'?' sel-p':'');
+  document.getElementById('btn-pago-no').className='tipo-tab'+(v==='no'?' sel-e':'');
+}
 let prodId=0;
 let autoSyncTimer=null;
 
@@ -706,7 +708,7 @@ function renderHoy(){
         <div style="margin-top:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
           ${tagPago(v.pago||'efectivo')}
           ${v.talonario?`<span style="font-size:11px;color:var(--muted);font-family:var(--fm)">🧾 ${v.talonario}</span>`:''}
-          ${v.deudaMonto>0?`<span class="tag" style="background:rgba(249,115,22,.15);color:var(--orange)">Abre cuenta</span>`:''}
+          ${v.noPago?`<span class="tag" style="background:rgba(240,64,64,.15);color:var(--red)">❌ No pagó</span>`:''}
         </div>
       </div>
       <div style="text-align:right;flex-shrink:0">
@@ -773,9 +775,7 @@ function abrirModalVenta(vid){
   document.getElementById('v-fecha').value=v?v.fecha:(document.getElementById('fecha-sel').value||hoy());
   document.getElementById('v-importe').value=v?v.monto:'';
   document.getElementById('v-talonario').value=v?v.talonario||'':'';
-  document.getElementById('v-deuda').value='no';
-  document.getElementById('v-deuda-monto-row').style.display='none';
-  document.getElementById('v-deuda-monto').value='';
+  setPagoEstado(v&&v.noPago?'no':'si');
   pagoSel=v?v.pago||'efectivo':'efectivo';
   ['efectivo','transferencia','t-credito','t-debito','mp-ivan','mp-daniel'].forEach(x=>{document.getElementById('chip-'+x).className='pago-chip'+(pagoSel===x?' sel-'+x:'');});
   document.getElementById('modal-venta').classList.add('open');
@@ -789,28 +789,22 @@ function guardarVenta(){
   if(!fecha){alert('Seleccioná una fecha');return;}
   if(!monto||monto<=0){alert('Ingresá el importe');return;}
   const talonario=document.getElementById('v-talonario').value.trim();
-  const hayDeuda=document.getElementById('v-deuda').value==='si';
-  const deudaMonto=hayDeuda?parseFloat(document.getElementById('v-deuda-monto').value)||0:0;
+  const noPago=pagoEstado==='no';
   const esEdit=!!ventaEditandoId;
 
   if(ventaEditandoId){
     const idx=ventas.findIndex(v=>v.id===ventaEditandoId);
-    if(idx!==-1) ventas[idx]={...ventas[idx],cliente,monto,talonario,fecha,deudaMonto,pago:pagoSel};
+    if(idx!==-1) ventas[idx]={...ventas[idx],cliente,monto,talonario,fecha,noPago,pago:pagoSel};
     ventaEditandoId=null;
   } else {
-    ventas.push({id:uid(),cliente,monto,talonario,fecha,deudaMonto,pago:pagoSel});
+    ventas.push({id:uid(),cliente,monto,talonario,fecha,noPago,pago:pagoSel});
+    if(noPago){
+      ventas_deudores.push({id:uid(),cliente,monto,pagado:0,
+        nota:'Venta del '+fecha+(talonario?' · Tal. '+talonario:''),
+        fecha,estado:'pendiente'});
+    }
   }
   save();
-
-  if(!esEdit&&hayDeuda&&deudaMonto>0){
-    const cid=uid();
-    cuentas.push({
-      id:cid,cliente,nota:'Generada desde venta del '+fecha,
-      fechaApertura:fecha,estado:'abierta',
-      movimientos:[{id:uid(),tipo:'entrega',fecha,descripcion:'Venta',monto:deudaMonto}]
-    });
-    save();
-  }
   cerrarModal('modal-venta');renderHoy();toast(esEdit?'✅ Venta actualizada':'✅ Venta guardada');
 }
 function eliminarVenta(id){
