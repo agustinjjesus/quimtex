@@ -240,7 +240,7 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
   <div class="login-sub">¿Quién sos?</div>
   <div class="role-cards">
     <div class="role-card ivan" onclick="intentarLogin('ivan')">
-      <div class="ricon">🧑‍💼</div><div class="rname">Iván</div><div class="rdesc">Cargar ventas y cuentas</div>
+      <div class="ricon">🧉</div><div class="rname">Agustín</div><div class="rdesc">Cargar ventas y cuentas</div>
     </div>
     <div class="role-card daniel" onclick="intentarLogin('daniel')">
       <div class="ricon">👔</div><div class="rname">Daniel</div><div class="rdesc">Ver números y reportes</div>
@@ -595,7 +595,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
 // ── PIN ──
 function intentarLogin(rol){
   pinTarget=rol;pinBuffer='';actualizarDots();
-  document.getElementById('pin-titulo').textContent=rol==='ivan'?'Hola Iván 👋':'Hola Daniel 👔';
+  document.getElementById('pin-titulo').textContent=rol==='ivan'?'Hola Agustín 🧉':'Hola Daniel 👔';
   document.getElementById('pin-error').textContent='';
   document.getElementById('pin-overlay').classList.add('open');
 }
@@ -615,7 +615,7 @@ function entrarComo(rol){
   document.getElementById('app').style.display='block';
   startAutoSync();
   const b=document.getElementById('user-badge');
-  b.textContent=rol==='ivan'?'Iván':'Daniel';b.className='ubadge '+rol;
+  b.textContent=rol==='ivan'?'Agustín':'Daniel';b.className='ubadge '+rol;
 
   if(rol==='ivan'){
     document.getElementById('tabs-container').innerHTML=`
