@@ -350,6 +350,17 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
       <div style="font-size:13px;color:var(--muted);margin-bottom:12px">Cambiar las credenciales de JSONBin.io</div>
       <button class="btn btn-b" onclick="abrirReconfig()">⚙️ Reconfigurar conexión</button>
     </div>
+    <div class="stitle" style="margin-top:4px">Migraciones</div>
+    <div class="fcard">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5">Convertir todas las <strong>cuentas corrientes abiertas</strong> en deudas simples.</div>
+      <button class="btn btn-o" style="margin-bottom:6px" onclick="migrarCuentasADeudores()">🔄 Migrar cuentas → Deudores</button>
+      <div id="status-migracion-cuentas" style="font-size:12px;color:var(--accent2);min-height:16px;margin-top:4px"></div>
+    </div>
+    <div class="fcard">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5">Asignar <strong>talonario 163</strong> a todas las ventas del 02/05/2026 al hoy.</div>
+      <button class="btn btn-o" style="margin-bottom:6px" onclick="migrarTalonario163()">🧾 Asignar talonario 163</button>
+      <div id="status-migracion-tal" style="font-size:12px;color:var(--accent2);min-height:16px;margin-top:4px"></div>
+    </div>
     <div class="stitle" style="margin-top:4px">Zona de peligro</div>
     <div class="fcard">
       <div style="font-size:13px;color:var(--muted);margin-bottom:12px">Borrar todos los datos. Esta acción no se puede deshacer.</div>
@@ -1064,6 +1075,41 @@ function guardarAbonoDeuda(){
 function eliminarDeudaSimple(id){
   if(!confirm('¿Eliminar esta deuda?'))return;
   ventas_deudores=ventas_deudores.filter(d=>d.id!==id);save();renderDeudores();
+}
+
+// ── MIGRACIONES ──
+function migrarCuentasADeudores(){
+  const abiertas=cuentas.filter(c=>c.estado==='abierta');
+  if(!abiertas.length){document.getElementById('status-migracion-cuentas').textContent='Sin cuentas abiertas para migrar.';return;}
+  if(!confirm(`¿Convertir ${abiertas.length} cuenta${abiertas.length!==1?'s':''} abiertas en deudas? Esta acción no se puede deshacer.`))return;
+  let migradas=0;
+  abiertas.forEach(c=>{
+    const entregas=(c.movimientos||[]).filter(m=>m.tipo==='entrega').reduce((s,m)=>s+parseFloat(m.monto||0),0);
+    const pagos=(c.movimientos||[]).filter(m=>m.tipo==='pago').reduce((s,m)=>s+parseFloat(m.monto||0),0);
+    const saldo=entregas-pagos;
+    if(saldo>0){
+      ventas_deudores.push({id:uid(),cliente:c.cliente,monto:saldo,pagado:0,
+        nota:'Migrado de cuenta corriente · '+c.fechaApertura,
+        fecha:c.fechaApertura||hoy(),estado:'pendiente'});
+      migradas++;
+    }
+    c.estado='migrada';
+  });
+  save();
+  document.getElementById('status-migracion-cuentas').textContent=`✅ ${migradas} deuda${migradas!==1?'s':''} creada${migradas!==1?'s':''}.`;
+  toast('✅ Cuentas migradas a deudores');
+}
+
+function migrarTalonario163(){
+  const desde='2026-05-02';
+  const hasta=hoy();
+  const afectadas=ventas.filter(v=>v.fecha>=desde&&v.fecha<=hasta);
+  if(!afectadas.length){document.getElementById('status-migracion-tal').textContent='Sin ventas en ese rango.';return;}
+  if(!confirm(`¿Asignar talonario 163 a ${afectadas.length} venta${afectadas.length!==1?'s':''}? (${desde} → ${hasta})`))return;
+  afectadas.forEach(v=>{v.talonario='163';});
+  save();
+  document.getElementById('status-migracion-tal').textContent=`✅ ${afectadas.length} venta${afectadas.length!==1?'s':''} actualizadas con talonario 163.`;
+  toast('✅ Talonario 163 asignado');
 }
 
 // ── BACKUP ──
