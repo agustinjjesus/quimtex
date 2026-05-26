@@ -367,21 +367,11 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
     <div class="mtitle">Nueva Venta</div>
     <div class="fr"><label>Cliente</label><input type="text" id="v-cliente" placeholder="Nombre del cliente"/></div>
     <div class="fr"><label>Fecha</label><input type="date" id="v-fecha"/></div>
-    <div class="stitle" style="margin-top:4px">Productos</div>
-    <div id="v-productos-lista"></div>
-    <button class="btn btn-g" style="margin-bottom:14px;font-size:13px" onclick="agregarProductoFila()">+ Agregar otro producto</button>
-    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:11px 13px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">
-      <span style="font-size:13px;color:var(--muted);font-weight:600">TOTAL</span>
-      <div id="v-total-display" class="total-breakdown"><span class="total-final">$0,00</span></div>
+    <div class="fr">
+      <label>Importe ($)</label>
+      <input type="number" id="v-importe" placeholder="0.00" step="0.01" min="0" style="font-size:22px;font-family:var(--fm);text-align:right"/>
     </div>
-    <div class="fc2" style="margin-bottom:0">
-      <div class="fr"><label>Talonario</label><input type="text" id="v-talonario" placeholder="Ej: 001" oninput="padRemito(this,3)" onblur="padRemitoBlur(this,3)"/></div>
-      <div class="fr"><label>Nº de Remito</label><input type="text" id="v-remito" placeholder="Ej: 000045" oninput="padRemito(this,6)" onblur="padRemitoBlur(this,6)"/></div>
-    </div>
-    <div class="fc2" style="margin-bottom:0">
-      <div class="fr"><label>Descuento (%)</label><input type="number" id="v-descuento" placeholder="0" min="0" max="100" oninput="actualizarTotal()"/></div>
-      <div class="fr"><label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="v-forzar-check" onchange="togglePrecioForzado()" style="width:auto;accent-color:var(--accent)"/> Forzar precio</label><input type="number" id="v-precio-forzado" placeholder="Precio final" step="0.01" min="0" class="input-disabled" oninput="actualizarTotal()"/></div>
-    </div>
+    <div class="fr"><label>Talonario</label><input type="text" id="v-talonario" placeholder="Ej: 001" oninput="padRemito(this,3)" onblur="padRemitoBlur(this,3)"/></div>
     <div class="fr">
       <label>Método de pago</label>
       <div class="pago-chips">
@@ -710,20 +700,17 @@ function renderHoy(){
   if(!lista.length){cont.innerHTML='<div class="empty"><div class="eicon">🧾</div>'+(busq?'Sin resultados para esa búsqueda':'Sin ventas en esta fecha')+'</div>';return;}
   const canEdit=esIvan();
   cont.innerHTML=lista.map(v=>{
-    const remito=v.talonario||v.nroRemito?`🧾 ${[v.talonario,v.nroRemito].filter(Boolean).join(' — ')}`:'';
-    const prods=v.productos&&v.productos.length>1
-      ?v.productos.map(p=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0;color:var(--muted)"><span>• ${p.desc}</span><span style="font-family:var(--fm)">${fmt(p.precio)}</span></div>`).join(''):'';
-    const descInfo=v.descuento>0?`<span style="font-size:10px;color:var(--orange)">Desc. ${v.descuento}%</span> `:'';
-    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 13px;margin-bottom:8px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 13px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:10px">
       <div style="flex:1;min-width:0">
-        <div style="font-weight:700;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v.cliente||'Sin nombre'}</div>
-        ${remito?`<div style="font-size:11px;color:var(--muted);margin-top:3px;font-family:var(--fm)">${remito}</div>`:''}
-        ${prods?`<div style="margin-top:6px;margin-bottom:2px">${prods}</div>`:`<div style="font-size:12px;color:var(--muted);margin-top:2px">${v.detalle||'—'}</div>`}
-        <div style="margin-top:5px">${descInfo}${tagPago(v.pago||'efectivo')}${v.deudaMonto>0?` <span class="tag" style="background:rgba(249,115,22,.15);color:var(--orange)">Abre cuenta</span>`:''}</div>
+        <div style="font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v.cliente||'Sin nombre'}</div>
+        <div style="margin-top:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          ${tagPago(v.pago||'efectivo')}
+          ${v.talonario?`<span style="font-size:11px;color:var(--muted);font-family:var(--fm)">🧾 ${v.talonario}</span>`:''}
+          ${v.deudaMonto>0?`<span class="tag" style="background:rgba(249,115,22,.15);color:var(--orange)">Abre cuenta</span>`:''}
+        </div>
       </div>
       <div style="text-align:right;flex-shrink:0">
-        <div style="font-family:var(--fm);font-size:16px;color:var(--accent2)">${fmt(v.monto)}</div>
-        ${v.productos&&v.productos.length>1?`<div style="font-size:10px;color:var(--muted);margin-top:2px">${v.productos.length} productos</div>`:''}
+        <div style="font-family:var(--fm);font-size:22px;font-weight:500;color:var(--accent2)">${fmt(v.monto)}</div>
         ${canEdit?`<div style="display:flex;gap:4px;margin-top:6px;justify-content:flex-end">
           <button class="bsm" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted)" onclick="editarVenta('${v.id}')">✏️</button>
           <button class="bsm btn-d" onclick="eliminarVenta('${v.id}')">✕</button>
@@ -783,26 +770,14 @@ function abrirModalVenta(vid){
   const v=vid?ventas.find(x=>x.id===vid):null;
   document.getElementById('modal-venta').querySelector('.mtitle').textContent=v?'Editar Venta':'Nueva Venta';
   document.getElementById('v-cliente').value=v?v.cliente:'';
+  document.getElementById('v-fecha').value=v?v.fecha:(document.getElementById('fecha-sel').value||hoy());
+  document.getElementById('v-importe').value=v?v.monto:'';
+  document.getElementById('v-talonario').value=v?v.talonario||'':'';
   document.getElementById('v-deuda').value='no';
   document.getElementById('v-deuda-monto-row').style.display='none';
-  if(document.getElementById('v-deuda-monto'))document.getElementById('v-deuda-monto').value='';
-  document.getElementById('v-fecha').value=v?v.fecha:(document.getElementById('fecha-sel').value||hoy());
-  document.getElementById('v-productos-lista').innerHTML='';prodId=0;
-  if(v&&v.productos&&v.productos.length){
-    v.productos.forEach(p=>agregarProductoFila(p.desc,p.precio));
-  } else {
-    agregarProductoFila();
-  }
-  document.getElementById('v-talonario').value=v?v.talonario||'':'';
-  document.getElementById('v-remito').value=v?v.nroRemito||'':'';
-  document.getElementById('v-descuento').value=v?v.descuento||'':'';
-  document.getElementById('v-forzar-check').checked=false;
-  document.getElementById('v-precio-forzado').value='';
-  document.getElementById('v-precio-forzado').disabled=true;
-  document.getElementById('v-precio-forzado').className='input-disabled';
+  document.getElementById('v-deuda-monto').value='';
   pagoSel=v?v.pago||'efectivo':'efectivo';
   ['efectivo','transferencia','t-credito','t-debito','mp-ivan','mp-daniel'].forEach(x=>{document.getElementById('chip-'+x).className='pago-chip'+(pagoSel===x?' sel-'+x:'');});
-  actualizarTotal();
   document.getElementById('modal-venta').classList.add('open');
 }
 function editarVenta(id){abrirModalVenta(id);}
@@ -810,47 +785,33 @@ function toggleDeudaMonto(){document.getElementById('v-deuda-monto-row').style.d
 function guardarVenta(){
   const cliente=document.getElementById('v-cliente').value.trim();
   const fecha=document.getElementById('v-fecha').value;
-  if(!cliente||!fecha){alert('Completá el cliente y la fecha');return;}
-  const filas=document.getElementById('v-productos-lista').children;
-  const productos=[];let totalMonto=0;
-  for(const f of filas){
-    const ins=f.querySelectorAll('input');
-    const desc=ins[0].value.trim(),precio=parseFloat(ins[1].value);
-    if(!desc||isNaN(precio)||precio<=0){alert('Cada producto necesita descripción y precio');return;}
-    productos.push({desc,precio});totalMonto+=precio;
-  }
-  const detalle=productos.map(p=>p.desc).join(', ');
+  const monto=parseFloat(document.getElementById('v-importe').value)||0;
+  if(!fecha){alert('Seleccioná una fecha');return;}
+  if(!monto||monto<=0){alert('Ingresá el importe');return;}
   const talonario=document.getElementById('v-talonario').value.trim();
-  const nroRemito=document.getElementById('v-remito').value.trim();
-  const descuento=parseFloat(document.getElementById('v-descuento').value)||0;
-  const forzarCheck=document.getElementById('v-forzar-check').checked;
-  const precioForzado=forzarCheck?parseFloat(document.getElementById('v-precio-forzado').value)||null:null;
-  const base=precioForzado!=null?precioForzado:totalMonto;
-  const totalFinal=base*(1-descuento/100);
   const hayDeuda=document.getElementById('v-deuda').value==='si';
   const deudaMonto=hayDeuda?parseFloat(document.getElementById('v-deuda-monto').value)||0:0;
+  const esEdit=!!ventaEditandoId;
 
   if(ventaEditandoId){
     const idx=ventas.findIndex(v=>v.id===ventaEditandoId);
-    if(idx!==-1) ventas[idx]={...ventas[idx],cliente,monto:totalFinal,montoBase:totalMonto,descuento,precioForzado,talonario,nroRemito,detalle,productos,fecha,deudaMonto,pago:pagoSel};
+    if(idx!==-1) ventas[idx]={...ventas[idx],cliente,monto,talonario,fecha,deudaMonto,pago:pagoSel};
     ventaEditandoId=null;
   } else {
-    ventas.push({id:uid(),cliente,monto:totalFinal,montoBase:totalMonto,descuento,precioForzado,talonario,nroRemito,detalle,productos,fecha,deudaMonto,pago:pagoSel});
+    ventas.push({id:uid(),cliente,monto,talonario,fecha,deudaMonto,pago:pagoSel});
   }
   save();
 
-  // Si quedó debiendo → crear cuenta corriente automáticamente
-  if(hayDeuda&&deudaMonto>0){
+  if(!esEdit&&hayDeuda&&deudaMonto>0){
     const cid=uid();
     cuentas.push({
       id:cid,cliente,nota:'Generada desde venta del '+fecha,
       fechaApertura:fecha,estado:'abierta',
-      movimientos:[{id:uid(),tipo:'entrega',fecha,descripcion:detalle,monto:deudaMonto,productos}]
+      movimientos:[{id:uid(),tipo:'entrega',fecha,descripcion:'Venta',monto:deudaMonto}]
     });
     save();
   }
-  const wasEdit=ventaEditandoId===null&&ventas.some(v=>v.id);
-  cerrarModal('modal-venta');renderHoy();toast(ventaEditandoId?'✅ Venta actualizada':'✅ Venta guardada');
+  cerrarModal('modal-venta');renderHoy();toast(esEdit?'✅ Venta actualizada':'✅ Venta guardada');
 }
 function eliminarVenta(id){
   if(!confirm('¿Eliminar esta venta?'))return;
