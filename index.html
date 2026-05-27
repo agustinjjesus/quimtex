@@ -658,7 +658,7 @@ function entrarComo(rol){
       <div class="ni" id="nav-backup" onclick="showPage('backup')"><div class="ni-icon">💾</div><div class="ni-lbl">BACKUP</div></div>`;
     document.getElementById('btn-nueva-venta').innerHTML='';
     document.getElementById('btn-cierre-caja').innerHTML='';
-    setHoy();showPage('resumen');
+    document.getElementById('fecha-sel').value=hoy();showPage('resumen');
   }
 }
 function logout(){usuarioActual=null;if(autoSyncTimer)clearInterval(autoSyncTimer);document.getElementById('app').style.display='none';document.getElementById('login-screen').style.display='flex';}
@@ -904,7 +904,7 @@ function renderResumen(){
       <div class="divider"></div>
       <div class="srow"><span class="srow-l" style="padding-left:14px">✅ Cobrado</span><span class="srow-v" style="color:var(--accent2)">${fmt(cobrado)}</span></div>
       <div class="divider"></div>
-      <div class="srow"><span class="srow-l" style="padding-left:14px">💳 Fiado del mes</span><span class="srow-v" style="color:var(--red)">${fmt(fiadoMes)}</span></div>
+      <div class="srow"><span class="srow-l" style="padding-left:14px">📋 Por cobrar del mes</span><span class="srow-v" style="color:var(--red)">${fmt(fiadoMes)}</span></div>
       <div class="divider"></div>
       <div class="srow"><span class="srow-l">Días con ventas</span><span class="srow-v">${dias}</span></div>
       <div class="divider"></div>
@@ -1271,7 +1271,7 @@ function generarPDF(){
 <div class="stats">
   <div class="stat"><div class="stat-lbl">Total facturado</div><div class="stat-val green">${fmt(totalMes)}</div></div>
   <div class="stat"><div class="stat-lbl">✅ Cobrado</div><div class="stat-val green">${fmt(cobrado)}</div></div>
-  <div class="stat"><div class="stat-lbl">💳 Fiado del mes</div><div class="stat-val red">${fmt(fiadoMes)}</div></div>
+  <div class="stat"><div class="stat-lbl">📋 Por cobrar del mes</div><div class="stat-val red">${fmt(fiadoMes)}</div></div>
   <div class="stat"><div class="stat-lbl">Días con ventas</div><div class="stat-val">${dias}</div></div>
 </div>
 <div class="stats" style="margin-top:-8px">
