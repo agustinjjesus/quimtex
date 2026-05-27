@@ -175,6 +175,16 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 
 .deudor-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
 .deudor-card.pagado{opacity:.5;}
+
+/* ── INTERCAMBIO SUCURSALES ── */
+.intercambio-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px;}
+.intercambio-card.enviamos{border-left:4px solid var(--accent);}
+.intercambio-card.recibimos{border-left:4px solid var(--blue);}
+.inter-header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px;}
+.inter-producto{font-weight:700;font-size:15px;flex:1;}
+.inter-cant{font-family:var(--fm);font-size:20px;color:var(--accent);flex-shrink:0;text-align:right;}
+.inter-meta{font-size:12px;color:var(--muted);margin-bottom:8px;}
+.inter-actions{display:flex;gap:8px;}
 .cierre-box{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px;white-space:pre-wrap;font-family:var(--fm);font-size:12px;line-height:1.6;color:var(--text);margin-bottom:14px;word-break:break-word;}
 
 /* tipo selector entrega/pago */
@@ -334,6 +344,16 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
     <div id="btn-nueva-deuda"></div>
   </div>
 
+  <!-- INTERCAMBIO SUCURSALES -->
+  <div id="page-intercambio" class="page">
+    <div class="sgrid" id="stats-intercambio"></div>
+    <div class="stitle">📤 Mandamos a Caseros <span style="color:var(--muted);font-weight:400;font-size:10px">(ellos nos deben devolver)</span></div>
+    <div id="lista-enviamos"></div>
+    <div class="stitle" style="margin-top:14px">📥 Recibimos de Caseros <span style="color:var(--muted);font-weight:400;font-size:10px">(nosotros les debemos)</span></div>
+    <div id="lista-recibimos"></div>
+    <div id="btn-nuevo-intercambio" style="margin-top:14px"></div>
+  </div>
+
   <!-- BACKUP -->
   <div id="page-backup" class="page">
     <div class="stitle">Copia de seguridad</div>
@@ -431,6 +451,54 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
   </div>
 </div>
 
+<!-- MODAL NUEVO INTERCAMBIO -->
+<div class="overlay" id="modal-intercambio">
+  <div class="modal">
+    <button class="mclose" onclick="cerrarModal('modal-intercambio')">✕</button>
+    <div class="mtitle">📦 Movimiento entre sucursales</div>
+    <div class="tipo-tabs">
+      <div id="tipo-env" class="tipo-tab sel-e" onclick="selTipoInter('enviamos')">📤 Mandamos</div>
+      <div id="tipo-rec" class="tipo-tab" onclick="selTipoInter('recibimos')">📥 Recibimos</div>
+    </div>
+    <div class="fr"><label>Producto</label>
+      <input type="text" id="inter-producto" placeholder="Romano Mix x27kg Base A"/></div>
+    <div class="fc2">
+      <div class="fr"><label>Cantidad</label>
+        <input type="number" id="inter-cantidad" value="1" min="0.1" step="0.5"/></div>
+      <div class="fr"><label>Unidad</label>
+        <select id="inter-unidad">
+          <option value="unidad">unidad/es</option>
+          <option value="kg">kg</option>
+          <option value="litro">litro/s</option>
+          <option value="balde">balde/s</option>
+          <option value="caja">caja/s</option>
+        </select></div>
+    </div>
+    <div class="fr"><label>Fecha</label>
+      <input type="date" id="inter-fecha"/></div>
+    <div class="fr"><label>Nota (opcional)</label>
+      <textarea id="inter-nota" placeholder="Para obra González, urgente..."></textarea></div>
+    <button class="btn btn-p" onclick="guardarIntercambio()">Guardar movimiento</button>
+  </div>
+</div>
+
+<!-- MODAL DEVOLUCIÓN -->
+<div class="overlay" id="modal-devolucion">
+  <div class="modal">
+    <button class="mclose" onclick="cerrarModal('modal-devolucion')">✕</button>
+    <div class="mtitle" id="dev-titulo">Registrar devolución</div>
+    <div id="dev-info" style="background:var(--surface2);border-radius:10px;padding:12px;margin-bottom:14px;font-size:13px;line-height:1.6"></div>
+    <div class="tipo-tabs">
+      <div id="dev-total-btn" class="tipo-tab sel-p" onclick="selDevTipo('total')">✅ Todo devuelto</div>
+      <div id="dev-parcial-btn" class="tipo-tab" onclick="selDevTipo('parcial')">📦 Devolución parcial</div>
+    </div>
+    <div id="dev-parcial-row" style="display:none" class="fr">
+      <label>Cantidad devuelta</label>
+      <input type="number" id="dev-cantidad" min="0.1" step="0.5"/></div>
+    <button class="btn btn-s" onclick="confirmarDevolucion()">Confirmar devolución</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -443,9 +511,10 @@ const DIAS_ALERTA = 7;
 let BIN_ID  = localStorage.getItem('qx_bin_id')  || '';
 let API_KEY = localStorage.getItem('qx_api_key') || '';
 
-let ventas=[], ventas_deudores=[], cuentas=[];
+let ventas=[], ventas_deudores=[], cuentas=[], intercambios=[];
 let usuarioActual=null, pinBuffer='', pinTarget=null;
 let pagoSel='efectivo', pagoEstado='si';
+let tipoInterSel='enviamos', devTipo='total', devInterId=null;
 
 function setPagoEstado(v){
   pagoEstado=v;
@@ -504,15 +573,19 @@ async function cloudLoad(){
     ventas=d.record.ventas||[];
     ventas_deudores=d.record.deudores||[];
     cuentas=d.record.cuentas||[];
+    intercambios=d.record.intercambios||[];
     localStorage.setItem('qx_bk_v',JSON.stringify(ventas));
     localStorage.setItem('qx_bk_d',JSON.stringify(ventas_deudores));
+    localStorage.setItem('qx_bk_i',JSON.stringify(intercambios));
     setSyncStatus('ok');
     return true;
   }catch(e){
     const bv=localStorage.getItem('qx_bk_v');
     const bd=localStorage.getItem('qx_bk_d');
+    const bi=localStorage.getItem('qx_bk_i');
     if(bv)ventas=JSON.parse(bv);
     if(bd)ventas_deudores=JSON.parse(bd);
+    if(bi)intercambios=JSON.parse(bi);
     if(!bv){mostrarSetup();return false;}
     setSyncStatus('error');
     return false;
@@ -524,8 +597,9 @@ async function cloudSave(){
   setSyncStatus('syncing');
   localStorage.setItem('qx_bk_v',JSON.stringify(ventas));
   localStorage.setItem('qx_bk_d',JSON.stringify(ventas_deudores));
+  localStorage.setItem('qx_bk_i',JSON.stringify(intercambios));
   try{
-    await fetch(JBURL(),{method:'PUT',headers:JBHDR(),body:JSON.stringify({ventas,deudores:ventas_deudores})});
+    await fetch(JBURL(),{method:'PUT',headers:JBHDR(),body:JSON.stringify({ventas,deudores:ventas_deudores,intercambios})});
     setSyncStatus('ok');
   }catch{setSyncStatus('error');}
 }
@@ -546,6 +620,7 @@ function refreshCurrentPage(){
   const id=a.id.replace('page-','');
   if(id==='hoy')renderHoy();
   else if(id==='resumen')renderResumen();
+  else if(id==='intercambio')renderIntercambio();
 }
 
 // ── SETUP / CONFIG ──
@@ -570,8 +645,10 @@ async function guardarConfig(){
     ventas=d.record.ventas||[];
     ventas_deudores=d.record.deudores||[];
     cuentas=d.record.cuentas||[];
+    intercambios=d.record.intercambios||[];
     localStorage.setItem('qx_bk_v',JSON.stringify(ventas));
     localStorage.setItem('qx_bk_d',JSON.stringify(ventas_deudores));
+    localStorage.setItem('qx_bk_i',JSON.stringify(intercambios));
     document.getElementById('setup-screen').style.display='none';
     document.getElementById('login-screen').style.display='flex';
   }catch{
@@ -634,11 +711,13 @@ function entrarComo(rol){
     document.getElementById('tabs-container').innerHTML=`
       <div class="tab active" id="tab-hoy" onclick="showPage('hoy')">📅 DÍA</div>
       <div class="tab" id="tab-buscar" onclick="showPage('buscar')">🔍 BUSCAR</div>
-      <div class="tab" id="tab-deudores" onclick="showPage('deudores')">💳 DEUDORES</div>`;
+      <div class="tab" id="tab-deudores" onclick="showPage('deudores')">💳 DEUDORES</div>
+      <div class="tab" id="tab-intercambio" onclick="showPage('intercambio')">🔄 CASEROS</div>`;
     document.getElementById('bottom-nav').innerHTML=`
       <div class="ni active" id="nav-hoy" onclick="showPage('hoy')"><div class="ni-icon">📅</div><div class="ni-lbl">DÍA</div></div>
       <div class="ni" id="nav-buscar" onclick="showPage('buscar')"><div class="ni-icon">🔍</div><div class="ni-lbl">BUSCAR</div></div>
-      <div class="ni" id="nav-deudores" onclick="showPage('deudores')"><div class="ni-icon">💳</div><div class="ni-lbl">DEUDORES</div></div>`;
+      <div class="ni" id="nav-deudores" onclick="showPage('deudores')"><div class="ni-icon">💳</div><div class="ni-lbl">DEUDORES</div></div>
+      <div class="ni" id="nav-intercambio" onclick="showPage('intercambio')"><div class="ni-icon">🔄</div><div class="ni-lbl">CASEROS</div></div>`;
     document.getElementById('btn-nueva-venta').innerHTML=`<button class="btn btn-p" style="margin-bottom:8px" onclick="abrirModalVenta()">+ Registrar venta</button>`;
     document.getElementById('btn-cierre-caja').innerHTML=`<button class="btn btn-g" onclick="abrirCierreCaja()">🧾 Cierre de caja del día</button>`;
     document.getElementById('btn-nueva-deuda').innerHTML=`<button class="btn btn-p" onclick="abrirNuevaDeuda()">+ Registrar deuda</button>`;
@@ -646,18 +725,21 @@ function entrarComo(rol){
   } else {
     document.getElementById('tabs-container').innerHTML=`
       <div class="tab active" id="tab-resumen" onclick="showPage('resumen')">📊 RESUMEN</div>
-      <div class="tab" id="tab-buscar" onclick="showPage('buscar')">🔍 BUSCAR</div>
+      <div class="tab" id="tab-intercambio" onclick="showPage('intercambio')">🔄 CASEROS</div>
       <div class="tab" id="tab-deudores" onclick="showPage('deudores')">💳 DEUDORES</div>
+      <div class="tab" id="tab-buscar" onclick="showPage('buscar')">🔍 BUSCAR</div>
       <div class="tab" id="tab-hoy" onclick="showPage('hoy')">📅 DÍA</div>
       <div class="tab" id="tab-backup" onclick="showPage('backup')">💾 BACKUP</div>`;
     document.getElementById('bottom-nav').innerHTML=`
       <div class="ni active" id="nav-resumen" onclick="showPage('resumen')"><div class="ni-icon">📊</div><div class="ni-lbl">RESUMEN</div></div>
-      <div class="ni" id="nav-buscar" onclick="showPage('buscar')"><div class="ni-icon">🔍</div><div class="ni-lbl">BUSCAR</div></div>
+      <div class="ni" id="nav-intercambio" onclick="showPage('intercambio')"><div class="ni-icon">🔄</div><div class="ni-lbl">CASEROS</div></div>
       <div class="ni" id="nav-deudores" onclick="showPage('deudores')"><div class="ni-icon">💳</div><div class="ni-lbl">DEUDORES</div></div>
+      <div class="ni" id="nav-buscar" onclick="showPage('buscar')"><div class="ni-icon">🔍</div><div class="ni-lbl">BUSCAR</div></div>
       <div class="ni" id="nav-hoy" onclick="showPage('hoy')"><div class="ni-icon">📅</div><div class="ni-lbl">DÍA</div></div>
       <div class="ni" id="nav-backup" onclick="showPage('backup')"><div class="ni-icon">💾</div><div class="ni-lbl">BACKUP</div></div>`;
     document.getElementById('btn-nueva-venta').innerHTML='';
     document.getElementById('btn-cierre-caja').innerHTML='';
+    document.getElementById('btn-nuevo-intercambio').innerHTML='';
     document.getElementById('fecha-sel').value=hoy();showPage('resumen');
   }
 }
@@ -674,6 +756,7 @@ function showPage(p){
   if(p==='buscar'){const el=document.getElementById('buscar-global');if(el)el.focus();renderBusqueda();}
   if(p==='deudores')renderDeudores();
   if(p==='resumen')renderResumen();
+  if(p==='intercambio')renderIntercambio();
 }
 
 // ── MÉTODO PAGO ──
@@ -1132,7 +1215,7 @@ function migrarTalonario163(){
 
 // ── BACKUP ──
 function exportarDatos(){
-  const datos={ventas,deudores:ventas_deudores,exportado:new Date().toISOString(),version:4};
+  const datos={ventas,deudores:ventas_deudores,intercambios,exportado:new Date().toISOString(),version:5};
   const blob=new Blob([JSON.stringify(datos,null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
   a.download=`quimtex_backup_${hoy()}.json`;document.body.appendChild(a);a.click();
@@ -1146,8 +1229,8 @@ function importarDatos(input){
       const d=JSON.parse(e.target.result);
       if(!d.ventas){document.getElementById('import-status').textContent='❌ Archivo inválido';return;}
       if(!confirm(`¿Restaurar ${d.ventas.length} ventas y ${d.cuentas.length} cuentas?`))return;
-      ventas=d.ventas;if(d.deudores)ventas_deudores=d.deudores;save();save();
-      document.getElementById('import-status').textContent=`✅ Restaurado: ${ventas.length} ventas, ${ventas_deudores.length} deudas`;
+      ventas=d.ventas;if(d.deudores)ventas_deudores=d.deudores;if(d.intercambios)intercambios=d.intercambios;save();
+      document.getElementById('import-status').textContent=`✅ Restaurado: ${ventas.length} ventas, ${ventas_deudores.length} deudas, ${intercambios.length} intercambios`;
       toast('✅ Datos restaurados');
     }catch{document.getElementById('import-status').textContent='❌ Error al leer el archivo';}
   };r.readAsText(file);
@@ -1155,7 +1238,7 @@ function importarDatos(input){
 function borrarTodo(){
   if(!confirm('⚠️ ¿Borrar TODOS los datos?'))return;
   if(!confirm('Confirmá de nuevo.'))return;
-  ventas=[];ventas_deudores=[];save();save();
+  ventas=[];ventas_deudores=[];intercambios=[];save();
   toast('Datos borrados','var(--red)');
 }
 
@@ -1323,6 +1406,120 @@ ${deudoresPendPdf.length?`
 
 // ── TOTALES POR CLIENTE ──
 
+
+// ── INTERCAMBIO ENTRE SUCURSALES ──
+function selTipoInter(t){
+  tipoInterSel=t;
+  document.getElementById('tipo-env').className='tipo-tab'+(t==='enviamos'?' sel-e':'');
+  document.getElementById('tipo-rec').className='tipo-tab'+(t==='recibimos'?' sel-p':'');
+}
+function selDevTipo(t){
+  devTipo=t;
+  document.getElementById('dev-total-btn').className='tipo-tab'+(t==='total'?' sel-p':'');
+  document.getElementById('dev-parcial-btn').className='tipo-tab'+(t==='parcial'?' sel-e':'');
+  document.getElementById('dev-parcial-row').style.display=t==='parcial'?'block':'none';
+}
+function abrirNuevoIntercambio(){
+  tipoInterSel='enviamos';selTipoInter('enviamos');
+  document.getElementById('inter-producto').value='';
+  document.getElementById('inter-cantidad').value='1';
+  document.getElementById('inter-unidad').value='unidad';
+  document.getElementById('inter-fecha').value=hoy();
+  document.getElementById('inter-nota').value='';
+  document.getElementById('modal-intercambio').classList.add('open');
+}
+function guardarIntercambio(){
+  const producto=document.getElementById('inter-producto').value.trim();
+  if(!producto){alert('Ingresá el nombre del producto');return;}
+  const cantidad=parseFloat(document.getElementById('inter-cantidad').value)||1;
+  const unidad=document.getElementById('inter-unidad').value;
+  const fecha=document.getElementById('inter-fecha').value||hoy();
+  const nota=document.getElementById('inter-nota').value.trim();
+  intercambios.push({id:uid(),tipo:tipoInterSel,sucursal:'Caseros',producto,cantidad,unidad,fecha,nota,devuelto:0,estado:'pendiente'});
+  save();cerrarModal('modal-intercambio');renderIntercambio();toast('✅ Movimiento registrado');
+}
+function abrirDevolucion(id){
+  const item=intercambios.find(x=>x.id===id);if(!item)return;
+  devInterId=id;devTipo='total';selDevTipo('total');
+  const pendiente=+(item.cantidad-item.devuelto).toFixed(3);
+  document.getElementById('dev-titulo').textContent=item.producto;
+  document.getElementById('dev-info').innerHTML=`
+    <div><strong>${item.producto}</strong> × ${item.cantidad} ${item.unidad}</div>
+    <div style="margin-top:4px;color:var(--muted)">Pendiente: <span style="color:var(--accent);font-weight:700">${pendiente} ${item.unidad}</span></div>
+    <div style="margin-top:2px;color:var(--muted)">${item.tipo==='enviamos'?'📤 Caseros nos devuelve':'📥 Nosotros devolvemos a Caseros'}</div>
+    ${item.nota?`<div style="margin-top:2px;color:var(--muted);font-style:italic">${item.nota}</div>`:''}`;
+  document.getElementById('dev-cantidad').value=pendiente;
+  document.getElementById('modal-devolucion').classList.add('open');
+}
+function confirmarDevolucion(){
+  const item=intercambios.find(x=>x.id===devInterId);if(!item)return;
+  const pendiente=+(item.cantidad-item.devuelto).toFixed(3);
+  if(devTipo==='total'){
+    item.devuelto=item.cantidad;item.estado='devuelto';
+  } else {
+    const cant=parseFloat(document.getElementById('dev-cantidad').value)||0;
+    if(cant<=0||cant>pendiente+0.001){alert('Cantidad inválida');return;}
+    item.devuelto=+(item.devuelto+cant).toFixed(3);
+    if(item.devuelto>=item.cantidad-0.001){item.devuelto=item.cantidad;item.estado='devuelto';}
+  }
+  save();cerrarModal('modal-devolucion');renderIntercambio();toast('✅ Devolución registrada');
+}
+function eliminarIntercambio(id){
+  if(!confirm('¿Eliminar este movimiento?'))return;
+  intercambios=intercambios.filter(x=>x.id!==id);
+  save();renderIntercambio();
+}
+function renderIntercambio(){
+  const pendEnv=intercambios.filter(x=>x.tipo==='enviamos'&&x.estado!=='devuelto');
+  const pendRec=intercambios.filter(x=>x.tipo==='recibimos'&&x.estado!=='devuelto');
+  const devEnv=intercambios.filter(x=>x.tipo==='enviamos'&&x.estado==='devuelto');
+  const devRec=intercambios.filter(x=>x.tipo==='recibimos'&&x.estado==='devuelto');
+  document.getElementById('stats-intercambio').innerHTML=`
+    <div class="scard"><div class="slbl">Caseros nos debe</div><div class="sval y">${pendEnv.length} ítem${pendEnv.length!==1?'s':''}</div><div class="ssub">pendiente${pendEnv.length!==1?'s':''}</div></div>
+    <div class="scard"><div class="slbl">Les debemos</div><div class="sval b">${pendRec.length} ítem${pendRec.length!==1?'s':''}</div><div class="ssub">pendiente${pendRec.length!==1?'s':''}</div></div>`;
+  const hoyStr=hoy();
+  function diasDesde(f){
+    const d=Math.floor((new Date(hoyStr+'T00:00')-new Date(f+'T00:00'))/(864e5));
+    if(d===0)return'hoy';if(d===1)return'ayer';return`hace ${d} días`;
+  }
+  function cardHTML(item){
+    const pendiente=+(item.cantidad-item.devuelto).toFixed(3);
+    const diasNum=Math.floor((new Date(hoyStr+'T00:00')-new Date(item.fecha+'T00:00'))/(864e5));
+    const esViejo=diasNum>7;
+    const fechaFmt=new Date(item.fecha+'T12:00').toLocaleDateString('es-AR',{day:'numeric',month:'short'});
+    const canEdit=usuarioActual==='ivan';
+    return `<div class="intercambio-card ${item.tipo}" style="${esViejo?'border-color:rgba(240,64,64,.5)':''}">
+      <div class="inter-header">
+        <div style="flex:1">
+          <div class="inter-producto">${item.producto}</div>
+          <div class="inter-meta">${fechaFmt} · <span style="color:${esViejo?'var(--red)':'var(--muted)'};font-weight:${esViejo?'700':'400'}">${diasDesde(item.fecha)}</span>${item.sucursal?' · '+item.sucursal:''}${item.nota?` · <em>${item.nota}</em>`:''}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div class="inter-cant" style="color:${item.tipo==='enviamos'?'var(--accent)':'var(--blue)'}">×${pendiente}</div>
+          <div style="font-size:11px;color:var(--muted)">${item.unidad}</div>
+        </div>
+      </div>
+      ${item.devuelto>0?`<div style="font-size:11px;color:var(--accent2);margin-bottom:8px">✅ Ya devuelto: ${item.devuelto} ${item.unidad}</div>`:''}
+      ${canEdit?`<div class="inter-actions">
+        <button class="btn bsm btn-s" onclick="abrirDevolucion('${item.id}')">✅ Devuelto</button>
+        <button class="btn bsm" style="background:transparent;border:1px solid var(--border);color:var(--muted);padding:5px 10px;font-size:11px;width:auto;border-radius:6px;cursor:pointer;font-weight:600" onclick="eliminarIntercambio('${item.id}')">🗑</button>
+      </div>`:''}
+    </div>`;
+  }
+  const listaEnv=document.getElementById('lista-enviamos');
+  const listaRec=document.getElementById('lista-recibimos');
+  if(!listaEnv||!listaRec)return;
+  listaEnv.innerHTML=(pendEnv.length?pendEnv.map(cardHTML).join(''):
+    '<div class="empty"><div class="eicon">✅</div>Sin pendientes — Caseros al día</div>')+
+    (devEnv.length?`<div style="color:var(--muted);font-size:12px;margin-top:8px;padding:6px 0;border-top:1px solid var(--border)">+ ${devEnv.length} ítem${devEnv.length!==1?'s':''} ya devuelto${devEnv.length!==1?'s':''}</div>`:'');
+  listaRec.innerHTML=(pendRec.length?pendRec.map(cardHTML).join(''):
+    '<div class="empty"><div class="eicon">✅</div>Sin pendientes — estamos al día</div>')+
+    (devRec.length?`<div style="color:var(--muted);font-size:12px;margin-top:8px;padding:6px 0;border-top:1px solid var(--border)">+ ${devRec.length} ítem${devRec.length!==1?'s':''} ya devuelto${devRec.length!==1?'s':''}</div>`:'');
+  // botón solo para Iván
+  const btnEl=document.getElementById('btn-nuevo-intercambio');
+  if(btnEl) btnEl.innerHTML=usuarioActual==='ivan'?
+    `<button class="btn btn-p" onclick="abrirNuevoIntercambio()">+ Registrar movimiento con Caseros</button>`:'';
+}
 
 // ── MODALS ──
 function cerrarModal(id){document.getElementById(id).classList.remove('open');}
