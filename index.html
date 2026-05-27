@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
@@ -888,24 +888,40 @@ function renderResumen(){
   const mes=getMesSeleccionado();
   const vm=ventas.filter(v=>v.fecha.startsWith(mes));
   const totalMes=vm.reduce((s,v)=>s+Number(v.monto),0);
+  const cobrado=vm.filter(v=>!v.noPago).reduce((s,v)=>s+Number(v.monto),0);
+  const fiadoMes=vm.filter(v=>v.noPago).reduce((s,v)=>s+Number(v.monto),0);
   const dias=new Set(vm.map(v=>v.fecha)).size;
+  // deudores pendientes (total global)
+  const deudoresPend=(ventas_deudores||[]).filter(d=>d.estado!=='pagado');
+  const totalDeudaGlobal=deudoresPend.reduce((s,d)=>s+Math.max(0,parseFloat(d.monto||0)-parseFloat(d.pagado||0)),0);
   // nombre del mes
   const [y,m]=mes.split('-');
   const mesStr=new Date(Number(y),Number(m)-1,1).toLocaleString('es-AR',{month:'long',year:'numeric'});
   document.getElementById('resumen-mes').innerHTML=`
     <div class="fcard">
       <div class="slbl" style="margin-bottom:10px">${mesStr.charAt(0).toUpperCase()+mesStr.slice(1)}</div>
-      <div class="srow"><span class="srow-l">Total facturado</span><span class="srow-v" style="color:var(--accent2)">${fmt(totalMes)}</span></div>
+      <div class="srow"><span class="srow-l">📦 Total facturado</span><span class="srow-v" style="color:var(--accent2)">${fmt(totalMes)}</span></div>
+      <div class="divider"></div>
+      <div class="srow"><span class="srow-l" style="padding-left:14px">✅ Cobrado</span><span class="srow-v" style="color:var(--accent2)">${fmt(cobrado)}</span></div>
+      <div class="divider"></div>
+      <div class="srow"><span class="srow-l" style="padding-left:14px">💳 Fiado del mes</span><span class="srow-v" style="color:var(--red)">${fmt(fiadoMes)}</span></div>
       <div class="divider"></div>
       <div class="srow"><span class="srow-l">Días con ventas</span><span class="srow-v">${dias}</span></div>
       <div class="divider"></div>
       <div class="srow"><span class="srow-l">Promedio por día</span><span class="srow-v" style="color:var(--accent)">${fmt(dias?totalMes/dias:0)}</span></div>
       <div class="divider"></div>
       <div class="srow"><span class="srow-l">Operaciones</span><span class="srow-v">${vm.length}</span></div>
+    </div>
+    <div class="fcard" style="border-color:rgba(240,64,64,.35);margin-top:0">
+      <div class="slbl" style="color:var(--red);margin-bottom:10px">💳 Deudores pendientes (total global)</div>
+      <div class="srow"><span class="srow-l">Total adeudado</span><span class="srow-v" style="color:var(--red)">${fmt(totalDeudaGlobal)}</span></div>
+      <div class="divider"></div>
+      <div class="srow"><span class="srow-l">Clientes</span><span class="srow-v">${deudoresPend.length} deudor${deudoresPend.length!==1?'es':''}</span></div>
     </div>`;
-  const dp={};vm.forEach(v=>{const k=v.pago||'efectivo';dp[k]=(dp[k]||0)+Number(v.monto);});
+  // desglose solo ventas cobradas (excluye fiados)
+  const dp={};vm.filter(v=>!v.noPago).forEach(v=>{const k=v.pago||'efectivo';dp[k]=(dp[k]||0)+Number(v.monto);});
   const pagoRows=Object.entries(dp).map(([k,v])=>`<div class="srow"><span class="srow-l">${PAGO_LBL[k]||k}</span><span class="srow-v">${fmt(v)}</span></div><div class="divider"></div>`).join('');
-  document.getElementById('resumen-pago').innerHTML=`<div class="fcard">${pagoRows||'<div style="color:var(--muted);font-size:13px;text-align:center;padding:8px">Sin ventas este mes</div>'}</div>`;
+  document.getElementById('resumen-pago').innerHTML=`<div class="fcard">${pagoRows||'<div style="color:var(--muted);font-size:13px;text-align:center;padding:8px">Sin ventas cobradas este mes</div>'}</div>`;
 }
 
 // ── RESUMEN SEMANAL WHATSAPP ──
@@ -1154,16 +1170,22 @@ function maskCuit(el){
 
 // ── GENERADOR PDF MENSUAL ──
 function generarPDF(){
-  const ahora=new Date();
-  const mes=ahora.toISOString().slice(0,7);
+  const mes=getMesSeleccionado();
+  const [py,pm]=mes.split('-');
+  const mesRef=new Date(Number(py),Number(pm)-1,1);
   const vm=ventas.filter(v=>v.fecha.startsWith(mes));
   const totalMes=vm.reduce((s,v)=>s+parseFloat(v.monto||0),0);
+  const cobrado=vm.filter(v=>!v.noPago).reduce((s,v)=>s+parseFloat(v.monto||0),0);
+  const fiadoMes=vm.filter(v=>v.noPago).reduce((s,v)=>s+parseFloat(v.monto||0),0);
   const dias=new Set(vm.map(v=>v.fecha)).size;
-  const mesStr=ahora.toLocaleString('es-AR',{month:'long',year:'numeric'});
+  const mesStr=mesRef.toLocaleString('es-AR',{month:'long',year:'numeric'});
   const mesNombre=mesStr.charAt(0).toUpperCase()+mesStr.slice(1);
+  // deudores pendientes global
+  const deudoresPendPdf=(ventas_deudores||[]).filter(d=>d.estado!=='pagado');
+  const totalDeudaPdf=deudoresPendPdf.reduce((s,d)=>s+Math.max(0,parseFloat(d.monto||0)-parseFloat(d.pagado||0)),0);
 
-  // desglose pago
-  const dp={};vm.forEach(v=>{const k=v.pago||'efectivo';dp[k]=(dp[k]||0)+parseFloat(v.monto||0);});
+  // desglose pago (solo cobrado)
+  const dp={};vm.filter(v=>!v.noPago).forEach(v=>{const k=v.pago||'efectivo';dp[k]=(dp[k]||0)+parseFloat(v.monto||0);});
   const pagoRowsHtml=Object.entries(dp).map(([k,v])=>`
     <tr><td>${PAGO_LBL[k]||k}</td><td style="text-align:right;font-weight:600;color:#16a34a">${fmt(v)}</td></tr>`).join('');
 
@@ -1186,15 +1208,18 @@ function generarPDF(){
     </tr>${ventasHtml}`;
   }).join('');
 
-  // cuentas corrientes abiertas
-  const abiertas=cuentas.filter(c=>c.estado==='abierta').sort((a,b)=>saldoCuenta(b).saldo-saldoCuenta(a).saldo);
-  const totalDeuda=abiertas.reduce((s,c)=>s+saldoCuenta(c).saldo,0);
-  const cuentasRows=abiertas.map(c=>{
-    const {entregado,pagado,saldo}=saldoCuenta(c);
+  // deudores pendientes para PDF
+  const deudoresPdfRows=deudoresPendPdf.slice().sort((a,b)=>{
+    const sa=Math.max(0,parseFloat(a.monto||0)-parseFloat(a.pagado||0));
+    const sb=Math.max(0,parseFloat(b.monto||0)-parseFloat(b.pagado||0));
+    return sb-sa;
+  }).map(d=>{
+    const saldo=Math.max(0,parseFloat(d.monto||0)-parseFloat(d.pagado||0));
+    const pag=parseFloat(d.pagado||0);
     return `<tr>
-      <td><strong>${c.cliente}</strong>${c.nota?`<br><span style="font-size:11px;color:#777">${c.nota}</span>`:''}</td>
-      <td style="text-align:right;color:#ea580c">${fmt(entregado)}</td>
-      <td style="text-align:right;color:#16a34a">${fmt(pagado)}</td>
+      <td><strong>${d.cliente||'—'}</strong>${d.nota?`<br><span style="font-size:11px;color:#777">${d.nota}</span>`:''}</td>
+      <td style="text-align:right;color:#ea580c">${fmt(parseFloat(d.monto||0))}</td>
+      <td style="text-align:right;color:#16a34a">${fmt(pag)}</td>
       <td style="text-align:right;color:#dc2626;font-weight:700">${fmt(saldo)}</td>
     </tr>`;
   }).join('');
@@ -1245,9 +1270,15 @@ function generarPDF(){
 
 <div class="stats">
   <div class="stat"><div class="stat-lbl">Total facturado</div><div class="stat-val green">${fmt(totalMes)}</div></div>
+  <div class="stat"><div class="stat-lbl">✅ Cobrado</div><div class="stat-val green">${fmt(cobrado)}</div></div>
+  <div class="stat"><div class="stat-lbl">💳 Fiado del mes</div><div class="stat-val red">${fmt(fiadoMes)}</div></div>
   <div class="stat"><div class="stat-lbl">Días con ventas</div><div class="stat-val">${dias}</div></div>
+</div>
+<div class="stats" style="margin-top:-8px">
   <div class="stat"><div class="stat-lbl">Promedio/día</div><div class="stat-val orange">${fmt(dias?totalMes/dias:0)}</div></div>
   <div class="stat"><div class="stat-lbl">Operaciones</div><div class="stat-val">${vm.length}</div></div>
+  <div class="stat" style="border:2px solid #dc2626"><div class="stat-lbl" style="color:#dc2626">💳 Total deudores</div><div class="stat-val red">${fmt(totalDeudaPdf)}</div><div style="font-size:10px;color:#888;margin-top:2px">${deudoresPendPdf.length} cliente${deudoresPendPdf.length!==1?'s':''}</div></div>
+  <div class="stat"></div>
 </div>
 
 <div class="section">
@@ -1255,7 +1286,7 @@ function generarPDF(){
   <table>
     <thead><tr><th>Método</th><th style="text-align:right">Monto</th></tr></thead>
     <tbody>${pagoRowsHtml||'<tr><td colspan="2" style="color:#aaa;text-align:center">Sin datos</td></tr>'}</tbody>
-    <tfoot><tr class="total-row"><td>TOTAL</td><td style="text-align:right">${fmt(totalMes)}</td></tr></tfoot>
+    <tfoot><tr class="total-row"><td>TOTAL COBRADO</td><td style="text-align:right">${fmt(cobrado)}</td></tr></tfoot>
   </table>
 </div>
 
@@ -1268,13 +1299,13 @@ function generarPDF(){
   </table>
 </div>
 
-${abiertas.length?`
+${deudoresPendPdf.length?`
 <div class="section">
-  <div class="section-title">Cuentas corrientes abiertas</div>
+  <div class="section-title">Deudores pendientes (total global)</div>
   <table>
-    <thead><tr><th>Cliente / Obra</th><th style="text-align:right">Entregado</th><th style="text-align:right">Cobrado</th><th style="text-align:right">Saldo</th></tr></thead>
-    <tbody>${cuentasRows}</tbody>
-    <tfoot><tr class="total-row"><td>TOTAL ADEUDADO</td><td></td><td></td><td style="text-align:right;color:#dc2626">${fmt(totalDeuda)}</td></tr></tfoot>
+    <thead><tr><th>Cliente / Nota</th><th style="text-align:right">Monto</th><th style="text-align:right">Abonado</th><th style="text-align:right">Saldo</th></tr></thead>
+    <tbody>${deudoresPdfRows}</tbody>
+    <tfoot><tr class="total-row"><td>TOTAL ADEUDADO</td><td></td><td></td><td style="text-align:right;color:#dc2626">${fmt(totalDeudaPdf)}</td></tr></tfoot>
   </table>
 </div>`:''}
 
@@ -1299,3 +1330,4 @@ document.querySelectorAll('.overlay').forEach(ov=>ov.addEventListener('click',fu
 </script>
 </body>
 </html>
+
