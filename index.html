@@ -455,7 +455,8 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 <div class="overlay" id="modal-intercambio">
   <div class="modal">
     <button class="mclose" onclick="cerrarModal('modal-intercambio')">✕</button>
-    <div class="mtitle">📦 Movimiento entre sucursales</div>
+    <input type="hidden" id="inter-edit-id"/>
+    <div class="mtitle" id="modal-intercambio-titulo">📦 Movimiento entre sucursales</div>
     <div class="tipo-tabs">
       <div id="tipo-env" class="tipo-tab sel-e" onclick="selTipoInter('enviamos')">📤 Mandamos</div>
       <div id="tipo-rec" class="tipo-tab" onclick="selTipoInter('recibimos')">📥 Recibimos</div>
@@ -1421,11 +1422,25 @@ function selDevTipo(t){
 }
 function abrirNuevoIntercambio(){
   tipoInterSel='enviamos';selTipoInter('enviamos');
+  document.getElementById('inter-edit-id').value='';
+  document.getElementById('modal-intercambio-titulo').textContent='📦 Movimiento entre sucursales';
   document.getElementById('inter-producto').value='';
   document.getElementById('inter-cantidad').value='1';
   document.getElementById('inter-unidad').value='unidad';
   document.getElementById('inter-fecha').value=hoy();
   document.getElementById('inter-nota').value='';
+  document.getElementById('modal-intercambio').classList.add('open');
+}
+function editarIntercambio(id){
+  const item=intercambios.find(x=>x.id===id);if(!item)return;
+  selTipoInter(item.tipo);
+  document.getElementById('inter-edit-id').value=id;
+  document.getElementById('modal-intercambio-titulo').textContent='✏️ Editar movimiento';
+  document.getElementById('inter-producto').value=item.producto||'';
+  document.getElementById('inter-cantidad').value=item.cantidad||1;
+  document.getElementById('inter-unidad').value=item.unidad||'unidad';
+  document.getElementById('inter-fecha').value=item.fecha||hoy();
+  document.getElementById('inter-nota').value=item.nota||'';
   document.getElementById('modal-intercambio').classList.add('open');
 }
 function guardarIntercambio(){
@@ -1435,8 +1450,15 @@ function guardarIntercambio(){
   const unidad=document.getElementById('inter-unidad').value;
   const fecha=document.getElementById('inter-fecha').value||hoy();
   const nota=document.getElementById('inter-nota').value.trim();
-  intercambios.push({id:uid(),tipo:tipoInterSel,sucursal:'Caseros',producto,cantidad,unidad,fecha,nota,devuelto:0,estado:'pendiente'});
-  save();cerrarModal('modal-intercambio');renderIntercambio();toast('✅ Movimiento registrado');
+  const editId=document.getElementById('inter-edit-id').value;
+  if(editId){
+    const idx=intercambios.findIndex(x=>x.id===editId);
+    if(idx!==-1) intercambios[idx]={...intercambios[idx],tipo:tipoInterSel,producto,cantidad,unidad,fecha,nota};
+    save();cerrarModal('modal-intercambio');renderIntercambio();toast('✅ Movimiento actualizado');
+  }else{
+    intercambios.push({id:uid(),tipo:tipoInterSel,sucursal:'Caseros',producto,cantidad,unidad,fecha,nota,devuelto:0,estado:'pendiente'});
+    save();cerrarModal('modal-intercambio');renderIntercambio();toast('✅ Movimiento registrado');
+  }
 }
 function abrirDevolucion(id){
   const item=intercambios.find(x=>x.id===id);if(!item)return;
@@ -1502,6 +1524,7 @@ function renderIntercambio(){
       ${item.devuelto>0?`<div style="font-size:11px;color:var(--accent2);margin-bottom:8px">✅ Ya devuelto: ${item.devuelto} ${item.unidad}</div>`:''}
       ${canEdit?`<div class="inter-actions">
         <button class="btn bsm btn-s" onclick="abrirDevolucion('${item.id}')">✅ Devuelto</button>
+        <button class="btn bsm" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 10px;font-size:11px;width:auto;border-radius:6px;cursor:pointer;font-weight:600" onclick="editarIntercambio('${item.id}')">✏️</button>
         <button class="btn bsm" style="background:transparent;border:1px solid var(--border);color:var(--muted);padding:5px 10px;font-size:11px;width:auto;border-radius:6px;cursor:pointer;font-weight:600" onclick="eliminarIntercambio('${item.id}')">🗑</button>
       </div>`:''}
     </div>`;
