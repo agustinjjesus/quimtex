@@ -370,6 +370,12 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
       <div style="font-size:13px;color:var(--muted);margin-bottom:12px">Cambiar las credenciales de JSONBin.io</div>
       <button class="btn btn-b" onclick="abrirReconfig()">⚙️ Reconfigurar conexión</button>
     </div>
+    <div class="stitle" style="margin-top:4px">Importar clientes</div>
+    <div class="fcard">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5">Cargar los <strong>38 clientes</strong> del archivo Excel de saldos al Seguimiento de Cobranzas. Si un cliente ya fue importado antes, no se duplica.</div>
+      <button class="btn btn-o" style="margin-bottom:6px" onclick="importarClientesExcel()">📥 Importar clientes del Excel</button>
+      <div id="status-import-excel" style="font-size:12px;color:var(--accent2);min-height:16px;margin-top:4px"></div>
+    </div>
     <div class="stitle" style="margin-top:4px">Zona de peligro</div>
     <div class="fcard">
       <div style="font-size:13px;color:var(--muted);margin-bottom:12px">Borrar todos los datos. Esta acción no se puede deshacer.</div>
@@ -496,7 +502,10 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
     <div class="mtitle" id="mds-titulo">Registrar Cobranza</div>
     <input type="hidden" id="mds-id"/>
     <div class="fr"><label>Cliente</label><input type="text" id="mds-cliente" placeholder="Nombre del cliente"/></div>
-    <div class="fr"><label>N° de Remito</label><input type="text" id="mds-remito" placeholder="Ej: 167 N1057"/></div>
+    <div class="fc2">
+      <div class="fr"><label>N° de Remito</label><input type="text" id="mds-remito" placeholder="Ej: 167 N1057"/></div>
+      <div class="fr"><label>CUIT / DNI</label><input type="text" id="mds-cuit" placeholder="20-12345678-9" oninput="maskCuit(this)"/></div>
+    </div>
     <div class="fc2">
       <div class="fr"><label>Saldo ($)</label><input type="number" id="mds-monto" placeholder="0.00" step="0.01" min="0"/></div>
       <div class="fr"><label>Fecha</label><input type="date" id="mds-fecha"/></div>
@@ -1096,6 +1105,7 @@ function renderDeudores(){
       '<div style="flex:1;min-width:0">'+
         '<div style="font-weight:600;font-size:14px">'+d.cliente+'</div>'+
         (d.remito?'<div style="font-size:11px;color:var(--muted);margin-top:2px;font-family:var(--fm)">🧾 '+d.remito+'</div>':'')+
+        (d.cuit?'<div style="font-size:11px;color:var(--muted);margin-top:1px;font-family:var(--fm)">🪪 '+d.cuit+'</div>':'')+
         '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+d.fecha+(d.nota?' · '+d.nota:'')+'</div>'+
         (pagado?'<div style="font-size:11px;color:var(--accent2);margin-top:3px">✅ Saldado</div>':
           '<div style="display:flex;gap:6px;margin-top:6px">'+
@@ -1115,6 +1125,7 @@ function abrirNuevaDeuda(){
   document.getElementById('mds-id').value='';
   document.getElementById('mds-cliente').value='';
   document.getElementById('mds-remito').value='';
+  document.getElementById('mds-cuit').value='';
   document.getElementById('mds-monto').value='';
   document.getElementById('mds-nota').value='';
   document.getElementById('mds-fecha').value=hoy();
@@ -1126,6 +1137,7 @@ function editarDeudaSimple(id){
   document.getElementById('mds-id').value=d.id;
   document.getElementById('mds-cliente').value=d.cliente||'';
   document.getElementById('mds-remito').value=d.remito||'';
+  document.getElementById('mds-cuit').value=d.cuit||'';
   document.getElementById('mds-monto').value=d.monto||'';
   document.getElementById('mds-nota').value=d.nota||'';
   document.getElementById('mds-fecha').value=d.fecha||hoy();
@@ -1136,15 +1148,16 @@ function guardarDeudaSimple(){
   const id=document.getElementById('mds-id').value;
   const cliente=document.getElementById('mds-cliente').value.trim();
   const remito=document.getElementById('mds-remito').value.trim();
+  const cuit=document.getElementById('mds-cuit').value.trim();
   const monto=parseFloat(document.getElementById('mds-monto').value);
   const nota=document.getElementById('mds-nota').value.trim();
   const fecha=document.getElementById('mds-fecha').value;
   if(!cliente||isNaN(monto)||monto<=0){alert('Completá cliente y saldo');return;}
   if(id){
     const idx=ventas_deudores.findIndex(d=>d.id===id);
-    if(idx!==-1)ventas_deudores[idx]={...ventas_deudores[idx],cliente,remito,monto,nota,fecha};
+    if(idx!==-1)ventas_deudores[idx]={...ventas_deudores[idx],cliente,remito,cuit,monto,nota,fecha};
   } else {
-    ventas_deudores.push({id:uid(),cliente,remito,monto,pagado:0,nota,fecha,estado:'pendiente'});
+    ventas_deudores.push({id:uid(),cliente,remito,cuit,monto,pagado:0,nota,fecha,estado:'pendiente'});
   }
   save();cerrarModal('modal-deuda-simple');renderDeudores();toast('✅ Cobranza guardada');
 }
@@ -1153,7 +1166,7 @@ function abrirAbonarDeuda(id){
   const saldo=Math.max(0,parseFloat(d.monto||0)-parseFloat(d.pagado||0));
   document.getElementById('mad-id').value=id;
   document.getElementById('mad-monto').value='';
-  document.getElementById('mad-info').innerHTML='<strong>'+d.cliente+'</strong>'+(d.remito?' · 🧾 '+d.remito:'')+'<br>Saldo: <span style="color:var(--red);font-family:var(--fm)">'+fmt(saldo)+'</span>';
+  document.getElementById('mad-info').innerHTML='<strong>'+d.cliente+'</strong>'+(d.remito?' · 🧾 '+d.remito:'')+(d.cuit?' · 🪪 '+d.cuit:'')+'<br>Saldo: <span style="color:var(--red);font-family:var(--fm)">'+fmt(saldo)+'</span>';
   document.getElementById('modal-abonar-deuda').classList.add('open');
 }
 function guardarAbonoDeuda(){
@@ -1168,6 +1181,39 @@ function guardarAbonoDeuda(){
 function eliminarDeudaSimple(id){
   if(!confirm('¿Eliminar esta cobranza?'))return;
   ventas_deudores=ventas_deudores.filter(d=>d.id!==id);save();renderDeudores();
+}
+
+
+// ── IMPORTAR CLIENTES DESDE EXCEL ──
+const CLIENTES_EXCEL_IMPORT = [{"clienteId": 133, "cliente": "ADRIAN CABRERA - APLICADOR", "cuit": "", "monto": 229162.0, "pagado": 85900.0}, {"clienteId": 385, "cliente": "ADRIAN CABRERA - PARTICULAR", "cuit": "", "monto": 1342900.0, "pagado": 0.0}, {"clienteId": 497, "cliente": "ADRIAN CABRERA X ARIEL", "cuit": "", "monto": 841200.0, "pagado": 796000.0}, {"clienteId": 634, "cliente": "ADRIAN CABRERA X HERNAN.", "cuit": "", "monto": 457300.0, "pagado": 0.0}, {"clienteId": 555, "cliente": "ALEJANDRO HURLINGHAM - REMAX ITUZAINGO.", "cuit": "", "monto": 5956759.0, "pagado": 5327350.0}, {"clienteId": 623, "cliente": "ANDRES APLICADOR - PARTICULAR.", "cuit": "", "monto": 5850510.0, "pagado": 4681303.0}, {"clienteId": 633, "cliente": "ARIEL POLARIZADOS.", "cuit": "", "monto": 285400.0, "pagado": 100000.0}, {"clienteId": 605, "cliente": "ARQ. DANIELA - VILLA URQUIZA.", "cuit": "", "monto": 442001.0, "pagado": 388400.0}, {"clienteId": 641, "cliente": "ARQ. FEDERICO X GABRIEL SCARNATO.", "cuit": "", "monto": 798300.0, "pagado": 0.0}, {"clienteId": 615, "cliente": "ARQ. PABLO DURAN X OLIVOS.", "cuit": "", "monto": 2921704.0, "pagado": 1744500.0}, {"clienteId": 503, "cliente": "ARQ.TERAN - OBRA FIDEIC_GUEMEZ 103", "cuit": "30717014673", "monto": 10335972.8, "pagado": 10154972.8}, {"clienteId": 526, "cliente": "BARRAL X MINGO Y  - RAMOS MEJIA", "cuit": "", "monto": 2840232.0, "pagado": 2840000.0}, {"clienteId": 574, "cliente": "CARLOS PORTILLO x DOCTOR GELPI 864", "cuit": "", "monto": 1093880.0, "pagado": 847680.0}, {"clienteId": 625, "cliente": "CARLOS VENEZUELA.", "cuit": "", "monto": 22600.0, "pagado": 0.0}, {"clienteId": 111, "cliente": "CARPINTERIA", "cuit": "", "monto": 300800.0, "pagado": 252000.0}, {"clienteId": 508, "cliente": "CARTI X MAGUIRE MARIA SUSANA", "cuit": "27044781161", "monto": 1637480.0, "pagado": 1594880.0}, {"clienteId": 477, "cliente": "CLAUDIO FRACCAROLLI - Particular", "cuit": "20135017192", "monto": 1638289.5, "pagado": 1548229.5}, {"clienteId": 635, "cliente": "CONCEPCION / TALLER CHAPA Y PINTURA.", "cuit": "", "monto": 323601.0, "pagado": 200000.0}, {"clienteId": 10, "cliente": "CRISTIAN - 3°B", "cuit": "", "monto": 947236.0, "pagado": 556450.0}, {"clienteId": 594, "cliente": "DANIEL DEMINSIUK", "cuit": "", "monto": 484940.0, "pagado": 387940.0}, {"clienteId": 460, "cliente": "EDUARDO FLUID - ACEROS JEKLO", "cuit": "33715854959", "monto": 1582336.0, "pagado": 1150736.0}, {"clienteId": 64, "cliente": "ENRIQUE - HURLINGHAM", "cuit": "30718512960", "monto": 1654250.1, "pagado": 1031450.1}, {"clienteId": 631, "cliente": "FACUNDO LASCURAIN.", "cuit": "", "monto": 265172.11, "pagado": 26172.11}, {"clienteId": 96, "cliente": "FLAVIO ESTUDIO CAS", "cuit": "30711638098", "monto": 3588458.55, "pagado": 2594000.1}, {"clienteId": 254, "cliente": "GERARDO GUARINIELLO", "cuit": "20134809397", "monto": 4571600.02, "pagado": 3679650.02}, {"clienteId": 579, "cliente": "GERMAN BENEDETTO X LIBERTAD Y  KOEHL.", "cuit": "", "monto": 5366200.0, "pagado": 3800000.0}, {"clienteId": 457, "cliente": "ING.NICOLAS SALOMONE- MONI Y DANY QUIROZ", "cuit": "", "monto": 5603740.0, "pagado": 4828234.05}, {"clienteId": 545, "cliente": "MARCELO NATALE  - OBRA ESTEBAN", "cuit": "20218433163", "monto": 518250.0, "pagado": 0.0}, {"clienteId": 577, "cliente": "MARCELO NATALE - OBRA LILIENTHAL.", "cuit": "", "monto": 4846750.0, "pagado": 3689150.0}, {"clienteId": 536, "cliente": "MARCELO NATALE X PROSERPIO", "cuit": "20218433163", "monto": 1843400.01, "pagado": 1146100.0}, {"clienteId": 617, "cliente": "MARCELO PINTOR.", "cuit": "", "monto": 842600.0, "pagado": 807300.0}, {"clienteId": 640, "cliente": "MARIELA X SERGIO CARTEL.", "cuit": "", "monto": 139000.0, "pagado": 0.0}, {"clienteId": 518, "cliente": "NICO MOLDURAS", "cuit": "", "monto": 361405.0, "pagado": 200100.0}, {"clienteId": 546, "cliente": "PEDRO NATALIO GOMEZ - PARTICULAR", "cuit": "", "monto": 522160.0, "pagado": 485690.0}, {"clienteId": 630, "cliente": "PEDRO NATALIO X PABLO ROJAS.", "cuit": "", "monto": 135200.0, "pagado": 0.0}, {"clienteId": 632, "cliente": "PEDRO NATALIO X PUEYRREDON.", "cuit": "", "monto": 257000.0, "pagado": 0.0}, {"clienteId": 95, "cliente": "RAUL (PINTOR-APLICADOR)", "cuit": "", "monto": 104000.0, "pagado": 0.0}, {"clienteId": 251, "cliente": "TIO CARLITOS x IVAN", "cuit": "", "monto": 240150.0, "pagado": 163350.0}];
+function importarClientesExcel(){
+  const yaImportados = new Set(ventas_deudores.filter(d=>d.clienteId).map(d=>d.clienteId));
+  const nuevos = CLIENTES_EXCEL_IMPORT.filter(c=>!yaImportados.has(c.clienteId));
+  if(!nuevos.length){
+    document.getElementById('status-import-excel').textContent='✅ Ya están todos importados.';
+    return;
+  }
+  if(!confirm(`¿Importar ${nuevos.length} cliente${nuevos.length!==1?'s':''} del Excel? Total a cobrar: ${fmt(nuevos.reduce((s,c)=>s+(c.monto-c.pagado),0))}`))return;
+  const fechaHoy=hoy();
+  nuevos.forEach(c=>{
+    const saldo=c.monto-c.pagado;
+    ventas_deudores.push({
+      id:uid(),
+      clienteId:c.clienteId,
+      cliente:c.cliente,
+      cuit:c.cuit||'',
+      remito:'',
+      monto:c.monto,
+      pagado:c.pagado,
+      nota:'Importado desde Excel',
+      fecha:fechaHoy,
+      estado:saldo<=0?'pagado':'pendiente'
+    });
+  });
+  save();
+  document.getElementById('status-import-excel').textContent=`✅ ${nuevos.length} cliente${nuevos.length!==1?'s':''} importado${nuevos.length!==1?'s':''} correctamente.`;
+  toast('✅ Clientes importados');
+  renderDeudores();
 }
 
 // ── BACKUP ──
@@ -1253,7 +1299,7 @@ function generarPDF(){
     const saldo=Math.max(0,parseFloat(d.monto||0)-parseFloat(d.pagado||0));
     const pag=parseFloat(d.pagado||0);
     return `<tr>
-      <td><strong>${d.cliente||'—'}</strong>${d.remito?`<br><span style="font-size:11px;color:#777">🧾 ${d.remito}</span>`:''}${d.nota?`<br><span style="font-size:11px;color:#777">${d.nota}</span>`:''}</td>
+      <td><strong>${d.cliente||'—'}</strong>${d.remito?`<br><span style="font-size:11px;color:#777">🧾 ${d.remito}</span>`:''}${d.cuit?`<br><span style="font-size:11px;color:#777">🪪 ${d.cuit}</span>`:''}${d.nota?`<br><span style="font-size:11px;color:#777">${d.nota}</span>`:''}</td>
       <td style="text-align:right;color:#ea580c">${fmt(parseFloat(d.monto||0))}</td>
       <td style="text-align:right;color:#16a34a">${fmt(pag)}</td>
       <td style="text-align:right;color:#dc2626;font-weight:700">${fmt(saldo)}</td>
