@@ -1089,33 +1089,26 @@ function renderDeudores(){
   const pend=ventas_deudores.filter(d=>d.estado!=='pagado');
   const totalDeuda=pend.reduce((s,d)=>s+Math.max(0,parseFloat(d.monto||0)-parseFloat(d.pagado||0)),0);
   document.getElementById('stats-deudores').innerHTML=`
-    <div class="scard"><div class="slbl">Total a cobrar</div><div class="sval r">${fmt(totalDeuda)}</div><div class="ssub">${pend.length} cliente${pend.length!==1?'s':''}</div></div>
-    <div class="scard"><div class="slbl">Cobranzas totales</div><div class="sval y">${ventas_deudores.length}</div><div class="ssub">registradas</div></div>`;
+    <div class="scard"><div class="slbl">Total a cobrar</div><div class="sval r">${fmt(totalDeuda)}</div><div class="ssub">${pend.length} cliente${pend.length!==1?'s':''}</div></div>`;
   const cont=document.getElementById('lista-deudores');
-  const lista=ventas_deudores.slice().sort((a,b)=>{
-    if(a.estado==='pagado'&&b.estado!=='pagado')return 1;
-    if(b.estado==='pagado'&&a.estado!=='pagado')return -1;
-    return 0;
-  });
-  if(!lista.length){cont.innerHTML='<div class="empty"><div class="eicon">✨</div>Sin cobranzas registradas</div>';return;}
+  const lista=pend.slice().sort((a,b)=>a.cliente.localeCompare(b.cliente,'es'));
+  if(!lista.length){cont.innerHTML='<div class="empty"><div class="eicon">✨</div>Sin deudores pendientes</div>';return;}
   cont.innerHTML=lista.map(d=>{
     const saldo=Math.max(0,parseFloat(d.monto||0)-parseFloat(d.pagado||0));
-    const pagado=d.estado==='pagado';
-    return '<div class="deudor-card'+(pagado?' pagado':'')+'">'+
+    return '<div class="deudor-card">'+
       '<div style="flex:1;min-width:0">'+
         '<div style="font-weight:600;font-size:14px">'+d.cliente+'</div>'+
         (d.remito?'<div style="font-size:11px;color:var(--muted);margin-top:2px;font-family:var(--fm)">🧾 '+d.remito+'</div>':'')+
         (d.cuit?'<div style="font-size:11px;color:var(--muted);margin-top:1px;font-family:var(--fm)">🪪 '+d.cuit+'</div>':'')+
         '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+d.fecha+(d.nota?' · '+d.nota:'')+'</div>'+
-        (pagado?'<div style="font-size:11px;color:var(--accent2);margin-top:3px">✅ Saldado</div>':
-          '<div style="display:flex;gap:6px;margin-top:6px">'+
+        '<div style="display:flex;gap:6px;margin-top:6px">'+
           (esIvan()?'<button class="bsm btn-s" onclick="abrirAbonarDeuda(&#39;'+d.id+'&#39;)">Abonar</button>':'')+
           (esIvan()?'<button class="bsm" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted)" onclick="editarDeudaSimple(&#39;'+d.id+'&#39;)">✏️</button>':'')+
           (esIvan()?'<button class="bsm btn-d" onclick="eliminarDeudaSimple(&#39;'+d.id+'&#39;)">✕</button>':'')+
-          '</div>')+
+        '</div>'+
       '</div>'+
       '<div style="text-align:right;flex-shrink:0">'+
-        '<div style="font-family:var(--fm);font-size:16px;color:'+(pagado?'var(--accent2)':'var(--red)')+'">'+fmt(saldo)+'</div>'+
+        '<div style="font-family:var(--fm);font-size:16px;color:var(--red)">'+fmt(saldo)+'</div>'+
         (parseFloat(d.pagado||0)>0?'<div style="font-size:10px;color:var(--muted);margin-top:2px">pagó '+fmt(d.pagado)+'</div>':'')+
       '</div>'+
     '</div>';
