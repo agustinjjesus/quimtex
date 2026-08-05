@@ -57,6 +57,11 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 .logout-btn{background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-size:12px;border-radius:8px;padding:4px 9px;cursor:pointer;}
 
 .tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);padding:0 8px;overflow-x:auto;}
+.ultimo-cargado{display:flex;align-items:center;gap:8px;background:rgba(232,160,32,.1);border-bottom:1px solid var(--border);padding:8px 14px;font-size:12px;color:var(--text);}
+.ultimo-cargado .uc-lbl{color:var(--accent);font-weight:700;white-space:nowrap;}
+.ultimo-cargado .uc-info{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ultimo-cargado .uc-info b{color:var(--text);}
+.ultimo-cargado .uc-info span{color:var(--muted);}
 .tab{flex-shrink:0;padding:11px 10px;font-size:11px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;cursor:pointer;transition:all .2s;white-space:nowrap;}
 .tab.active{color:var(--accent);border-bottom-color:var(--accent);}
 
@@ -296,6 +301,7 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
       <div id="sync-status" style="font-size:9px;color:var(--muted);letter-spacing:.5px">☁️ Cargando...</div>
     </div>
   </header>
+  <div id="ultimo-cargado-bar"></div>
   <div class="tabs" id="tabs-container"></div>
 
   <!-- DÍA -->
@@ -643,6 +649,7 @@ function startAutoSync(){
   },30000);
 }
 function refreshCurrentPage(){
+  renderUltimoCargado();
   const a=document.querySelector('.page.active');if(!a)return;
   const id=a.id.replace('page-','');
   if(id==='hoy')renderHoy();
@@ -731,6 +738,7 @@ function entrarComo(rol){
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='block';
   startAutoSync();
+  renderUltimoCargado();
   const b=document.getElementById('user-badge');
   b.textContent=rol==='ivan'?'Agustín':'Daniel';b.className='ubadge '+rol;
 
@@ -844,6 +852,19 @@ function renderHoy(){
   }).join('');
 }
 
+// ── ÚLTIMO CARGADO ──
+function renderUltimoCargado(){
+  const bar=document.getElementById('ultimo-cargado-bar');
+  if(!bar)return;
+  if(!ventas.length){bar.innerHTML='';return;}
+  const v=ventas[ventas.length-1];
+  const fechaFmt=v.fecha?new Date(v.fecha+'T12:00').toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'}):'—';
+  bar.innerHTML=`<div class="ultimo-cargado">
+    <span class="uc-lbl">📍 Último cargado</span>
+    <span class="uc-info"><b>${v.cliente||'Sin nombre'}</b>${v.talonario?' · 🧾 <b>'+v.talonario+'</b>':''} <span>· ${fechaFmt}</span></span>
+  </div>`;
+}
+
 // ── VENTAS ──
 function agregarProductoFila(desc='',precio=''){
   prodId++;const id='prod-'+prodId;
@@ -925,11 +946,11 @@ function guardarVenta(){
     }
   }
   save();
-  cerrarModal('modal-venta');renderHoy();toast(esEdit?'✅ Venta actualizada':'✅ Venta guardada');
+  cerrarModal('modal-venta');renderHoy();renderUltimoCargado();toast(esEdit?'✅ Venta actualizada':'✅ Venta guardada');
 }
 function eliminarVenta(id){
   if(!confirm('¿Eliminar esta venta?'))return;
-  ventas=ventas.filter(v=>v.id!==id);save();renderHoy();
+  ventas=ventas.filter(v=>v.id!==id);save();renderHoy();renderUltimoCargado();
 }
 
 // ── CIERRE DE CAJA ──
