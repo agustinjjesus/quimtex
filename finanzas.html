@@ -9,6 +9,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
 <style>
   :root{
     --bg:#0f1420;
@@ -43,9 +45,39 @@
   }
   .wrap{max-width:720px;margin:0 auto;}
 
+  /* Login */
+  .login-screen{
+    min-height:100vh;
+    display:flex;align-items:center;justify-content:center;
+    padding:16px;
+  }
+  .login-card{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:28px 24px;
+    width:100%;
+    max-width:340px;
+    text-align:center;
+  }
+  .login-card h1{
+    font-family:var(--font-heading);
+    font-weight:800;
+    letter-spacing:-.02em;
+    font-size:1.6rem;
+    margin:0 0 6px;
+  }
+  .login-card p{color:var(--text-dim);font-size:.85rem;margin:0 0 18px;}
+  .login-error{
+    display:none;
+    color:var(--red);
+    font-size:.8rem;
+    margin-top:10px;
+  }
+
   header{
     text-align:center;
-    padding:18px 8px 22px;
+    padding:18px 8px 6px;
   }
   header h1{
     font-family:var(--font-heading);
@@ -56,6 +88,18 @@
     display:flex;align-items:center;justify-content:center;gap:8px;
   }
   header p{color:var(--text-dim);margin:0;font-size:.9rem;}
+
+  .sync-badge{
+    display:inline-flex;align-items:center;gap:6px;
+    font-size:.7rem;color:var(--green);
+    background:var(--green-dim);
+    border:1px solid var(--green);
+    padding:4px 10px;border-radius:999px;
+    margin:10px auto 8px;
+  }
+  .sync-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--green);}
+  .sync-badge.off{color:var(--text-dim);background:var(--bg-soft);border-color:var(--border);}
+  .sync-badge.off .dot{background:var(--text-dim);}
 
   .tabs{
     display:flex;
@@ -287,10 +331,22 @@
 </style>
 </head>
 <body>
-<div class="wrap">
+
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <h1>Finanzas</h1>
+    <p>Ingresá la contraseña para continuar</p>
+    <input type="password" id="pwInput" placeholder="Contraseña" autocomplete="current-password">
+    <button type="button" class="submit-btn ingreso" id="btnLogin">Entrar</button>
+    <div class="login-error" id="loginError">Contraseña incorrecta</div>
+  </div>
+</div>
+
+<div class="wrap" id="mainWrap" style="display:none;">
 
   <header>
     <h1>Finanzas</h1>
+    <div class="sync-badge" id="syncBadge"><span class="dot"></span>Sincronizado</div>
   </header>
 
   <div class="tabs">
@@ -447,8 +503,8 @@
   </section>
 
   <div class="footer-note">
-    Los datos se guardan solo en este navegador/dispositivo (no se sincronizan entre celular y PC).<br>
-    Usá "Exportar CSV" de vez en cuando para tener un respaldo.
+    Los datos se sincronizan automáticamente entre tus dispositivos.<br>
+    Usá "Exportar CSV" de vez en cuando para tener un respaldo aparte.
   </div>
 </div>
 
@@ -458,17 +514,42 @@
 (function(){
   "use strict";
 
-  const STORAGE_KEY = "finanzasPersonales.movimientos.v1";
-  const SERVICIOS_KEY = "finanzasPersonales.servicios.v1";
+  // ─── FIREBASE ────────────────────────────────────────────────────────────
+  // Reutiliza el mismo proyecto de Firebase que ya está configurado en
+  // combo-biotina (admin.html), en colecciones propias para no mezclarse
+  // con los pedidos del negocio.
+  const FIREBASE_ENABLED = true;
+  const FIREBASE_CONFIG = {
+    apiKey:            'AIzaSyB2lipjGfqeV6gmKRw4vZEnzFHQsF1JxnQ',
+    authDomain:        'biotina-pg.firebaseapp.com',
+    projectId:         'biotina-pg',
+    storageBucket:     'biotina-pg.firebasestorage.app',
+    messagingSenderId: '167629017281',
+    appId:             '1:167629017281:web:def9e7b08c390b40d04440'
+  };
+  // Cambiá esta contraseña por la que quieras usar vos.
+  const PASSWORD = 'Finanzas-7x2Q';
+
+  const MOV_COL = 'finanzasMovimientos';
+  const SERV_COL = 'finanzasServicios';
+
+  let db = null;
+  if (FIREBASE_ENABLED && typeof firebase !== 'undefined') {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.firestore();
+  }
+
+  const STORAGE_KEY = "finanzasPersonales.cache.movimientos.v1";
+  const SERVICIOS_KEY = "finanzasPersonales.cache.servicios.v1";
 
   const DEFAULT_SERVICIOS = [
-    {id: uid(), nombre: "Luz"},
-    {id: uid(), nombre: "Agua"},
-    {id: uid(), nombre: "Gas"},
-    {id: uid(), nombre: "Internet"},
-    {id: uid(), nombre: "Celular"},
-    {id: uid(), nombre: "Alquiler"},
-    {id: uid(), nombre: "Expensas"},
+    { nombre: "Luz" },
+    { nombre: "Agua" },
+    { nombre: "Gas" },
+    { nombre: "Internet" },
+    { nombre: "Celular" },
+    { nombre: "Alquiler" },
+    { nombre: "Expensas" },
   ];
 
   function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
@@ -480,6 +561,10 @@
   function fmtDate(d){
     const dt = new Date(d + "T00:00:00");
     return dt.toLocaleDateString("es-AR", {day:"2-digit", month:"2-digit", year:"2-digit"});
+  }
+  function currentMonthKey(){
+    const d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
   }
 
   function load(key, fallback){
@@ -494,323 +579,441 @@
   }
 
   let movimientos = load(STORAGE_KEY, []);
-  let servicios = load(SERVICIOS_KEY, null);
-  if(!servicios){
-    servicios = DEFAULT_SERVICIOS.map(s => ({...s, pagado:false, monto:"", mesRef: currentMonthKey()}));
-    save(SERVICIOS_KEY, servicios);
+  let servicios = load(SERVICIOS_KEY, []);
+
+  // ─── LOGIN ───────────────────────────────────────────────────────────────
+  function showApp(){
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('mainWrap').style.display = 'block';
+    const badge = document.getElementById('syncBadge');
+    if(!db){ badge.classList.add('off'); badge.lastChild.textContent = ' Sin conexión a la nube'; }
+    initApp();
   }
-  // reset "pagado" state when a new month starts
-  function currentMonthKey(){
-    const d = new Date();
-    return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
+  function doLogin(){
+    const val = document.getElementById('pwInput').value;
+    if(val === PASSWORD){
+      sessionStorage.setItem('finanzasAuth', 'ok');
+      showApp();
+    } else {
+      document.getElementById('loginError').style.display = 'block';
+    }
   }
-  (function resetServiciosSiNuevoMes(){
-    const mk = currentMonthKey();
-    let changed = false;
-    servicios.forEach(s=>{
-      if(s.mesRef !== mk){ s.pagado = false; s.monto = ""; s.mesRef = mk; changed = true; }
-    });
-    if(changed) save(SERVICIOS_KEY, servicios);
-  })();
+  document.getElementById('btnLogin').addEventListener('click', doLogin);
+  document.getElementById('pwInput').addEventListener('keydown', e => { if(e.key === 'Enter') doLogin(); });
 
-  function persistMovs(){ save(STORAGE_KEY, movimientos); }
-  function persistServicios(){ save(SERVICIOS_KEY, servicios); }
+  if (sessionStorage.getItem('finanzasAuth') === 'ok') {
+    showApp();
+  }
 
-  // ---------- Tabs ----------
-  const tabBtns = document.querySelectorAll(".tab-btn");
-  const views = document.querySelectorAll(".view");
-  tabBtns.forEach(btn=>{
-    btn.addEventListener("click", ()=>{
-      tabBtns.forEach(b=>b.classList.remove("active"));
-      views.forEach(v=>v.classList.remove("active"));
-      btn.classList.add("active");
-      document.getElementById("view-"+btn.dataset.view).classList.add("active");
-      if(btn.dataset.view === "resumen") renderResumen();
-      if(btn.dataset.view === "servicios") renderServicios();
-      if(btn.dataset.view === "historial") renderHistorial();
-    });
-  });
+  // ─── INIT (solo después del login) ─────────────────────────────────────
+  let appInited = false;
+  function initApp(){
+    if (appInited) return;
+    appInited = true;
 
-  // ---------- Method toggles ----------
-  function wireMethodToggle(containerId, hiddenId){
-    const container = document.getElementById(containerId);
-    const hidden = document.getElementById(hiddenId);
-    container.querySelectorAll("button").forEach(btn=>{
+    // ---------- Tabs ----------
+    const tabBtns = document.querySelectorAll(".tab-btn");
+    const views = document.querySelectorAll(".view");
+    tabBtns.forEach(btn=>{
       btn.addEventListener("click", ()=>{
-        container.querySelectorAll("button").forEach(b=>b.classList.remove("active"));
+        tabBtns.forEach(b=>b.classList.remove("active"));
+        views.forEach(v=>v.classList.remove("active"));
         btn.classList.add("active");
-        hidden.value = btn.dataset.val;
+        document.getElementById("view-"+btn.dataset.view).classList.add("active");
+        if(btn.dataset.view === "resumen") renderResumen();
+        if(btn.dataset.view === "servicios") renderServicios();
+        if(btn.dataset.view === "historial") renderHistorial();
       });
     });
-  }
-  wireMethodToggle("ingMetodoToggle","ingMetodo");
-  wireMethodToggle("gasMetodoToggle","gasMetodo");
 
-  document.getElementById("ingFecha").value = todayStr();
-  document.getElementById("gasFecha").value = todayStr();
+    // ---------- Method toggles ----------
+    function wireMethodToggle(containerId, hiddenId){
+      const container = document.getElementById(containerId);
+      const hidden = document.getElementById(hiddenId);
+      container.querySelectorAll("button").forEach(btn=>{
+        btn.addEventListener("click", ()=>{
+          container.querySelectorAll("button").forEach(b=>b.classList.remove("active"));
+          btn.classList.add("active");
+          hidden.value = btn.dataset.val;
+        });
+      });
+    }
+    wireMethodToggle("ingMetodoToggle","ingMetodo");
+    wireMethodToggle("gasMetodoToggle","gasMetodo");
 
-  // ---------- Forms ----------
-  document.getElementById("formIngreso").addEventListener("submit", function(e){
-    e.preventDefault();
-    const monto = parseFloat(document.getElementById("ingMonto").value);
-    if(!monto || monto <= 0){ showToast("Ingresá un monto válido"); return; }
-    movimientos.push({
-      id: uid(),
-      tipo: "ingreso",
-      monto: monto,
-      metodo: document.getElementById("ingMetodo").value,
-      categoria: document.getElementById("ingCategoria").value,
-      desc: document.getElementById("ingDesc").value.trim(),
-      fecha: document.getElementById("ingFecha").value || todayStr(),
-      creado: Date.now()
-    });
-    persistMovs();
-    this.reset();
     document.getElementById("ingFecha").value = todayStr();
-    document.getElementById("ingMetodoToggle").querySelectorAll("button").forEach((b,i)=>b.classList.toggle("active", i===0));
-    document.getElementById("ingMetodo").value = "efectivo";
-    showToast("Ingreso guardado");
-    renderResumen();
-  });
-
-  document.getElementById("formGasto").addEventListener("submit", function(e){
-    e.preventDefault();
-    const monto = parseFloat(document.getElementById("gasMonto").value);
-    if(!monto || monto <= 0){ showToast("Ingresá un monto válido"); return; }
-    movimientos.push({
-      id: uid(),
-      tipo: "gasto",
-      monto: monto,
-      metodo: document.getElementById("gasMetodo").value,
-      categoria: document.getElementById("gasCategoria").value,
-      desc: document.getElementById("gasDesc").value.trim(),
-      fecha: document.getElementById("gasFecha").value || todayStr(),
-      creado: Date.now()
-    });
-    persistMovs();
-    this.reset();
     document.getElementById("gasFecha").value = todayStr();
-    document.getElementById("gasMetodoToggle").querySelectorAll("button").forEach((b,i)=>b.classList.toggle("active", i===0));
-    document.getElementById("gasMetodo").value = "efectivo";
-    showToast("Gasto guardado");
-    renderResumen();
-  });
 
-  // ---------- Period filter ----------
-  let currentPeriod = "hoy";
-  document.getElementById("periodSelect").addEventListener("click", function(e){
-    const btn = e.target.closest("button");
-    if(!btn) return;
-    this.querySelectorAll("button").forEach(b=>b.classList.remove("active"));
-    btn.classList.add("active");
-    currentPeriod = btn.dataset.period;
-    renderResumen();
-  });
-
-  function inPeriod(fecha, period){
-    if(period === "todo") return true;
-    const d = new Date(fecha + "T00:00:00");
-    const now = new Date();
-    if(period === "hoy"){
-      return fecha === todayStr();
-    }
-    if(period === "semana"){
-      const start = new Date(now);
-      const day = (start.getDay()+6)%7; // lunes=0
-      start.setDate(start.getDate()-day);
-      start.setHours(0,0,0,0);
-      return d >= start;
-    }
-    if(period === "mes"){
-      return d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth();
-    }
-    return true;
-  }
-
-  // ---------- Renderers ----------
-  function renderResumen(){
-    const filtered = movimientos.filter(m => inPeriod(m.fecha, currentPeriod));
-    const ingresos = filtered.filter(m=>m.tipo==="ingreso").reduce((s,m)=>s+m.monto,0);
-    const gastos = filtered.filter(m=>m.tipo==="gasto").reduce((s,m)=>s+m.monto,0);
-    document.getElementById("statIngresos").textContent = fmtMoney(ingresos);
-    document.getElementById("statGastos").textContent = fmtMoney(gastos);
-    const balance = ingresos - gastos;
-    const balEl = document.getElementById("statBalance");
-    balEl.textContent = fmtMoney(balance);
-    balEl.className = "value " + (balance>=0 ? "pos":"neg");
-
-    // acumulado total (todo el historial, no filtrado por período)
-    let efectivo = 0, mp = 0;
-    movimientos.forEach(m=>{
-      const signo = m.tipo === "ingreso" ? 1 : -1;
-      if(m.metodo === "efectivo") efectivo += signo*m.monto;
-      else mp += signo*m.monto;
+    // ---------- Forms ----------
+    document.getElementById("formIngreso").addEventListener("submit", function(e){
+      e.preventDefault();
+      const monto = parseFloat(document.getElementById("ingMonto").value);
+      if(!monto || monto <= 0){ showToast("Ingresá un monto válido"); return; }
+      const mov = {
+        tipo: "ingreso",
+        monto: monto,
+        metodo: document.getElementById("ingMetodo").value,
+        categoria: document.getElementById("ingCategoria").value,
+        desc: document.getElementById("ingDesc").value.trim(),
+        fecha: document.getElementById("ingFecha").value || todayStr(),
+        creado: Date.now()
+      };
+      addMovimiento(mov);
+      this.reset();
+      document.getElementById("ingFecha").value = todayStr();
+      document.getElementById("ingMetodoToggle").querySelectorAll("button").forEach((b,i)=>b.classList.toggle("active", i===0));
+      document.getElementById("ingMetodo").value = "efectivo";
+      showToast("Ingreso guardado");
     });
-    document.getElementById("totalEfectivo").textContent = fmtMoney(efectivo);
-    document.getElementById("totalMP").textContent = fmtMoney(mp);
-    document.getElementById("totalGeneral").textContent = "Total: " + fmtMoney(efectivo+mp);
 
-    const lista = document.getElementById("resumenLista");
-    const ultimos = [...movimientos].sort((a,b)=>b.creado-a.creado).slice(0,6);
-    lista.innerHTML = ultimos.length ? ultimos.map(histRow).join("") : '<div class="empty">Todavía no hay movimientos cargados.</div>';
-    wireDeleteButtons(lista);
-  }
+    document.getElementById("formGasto").addEventListener("submit", function(e){
+      e.preventDefault();
+      const monto = parseFloat(document.getElementById("gasMonto").value);
+      if(!monto || monto <= 0){ showToast("Ingresá un monto válido"); return; }
+      const mov = {
+        tipo: "gasto",
+        monto: monto,
+        metodo: document.getElementById("gasMetodo").value,
+        categoria: document.getElementById("gasCategoria").value,
+        desc: document.getElementById("gasDesc").value.trim(),
+        fecha: document.getElementById("gasFecha").value || todayStr(),
+        creado: Date.now()
+      };
+      addMovimiento(mov);
+      this.reset();
+      document.getElementById("gasFecha").value = todayStr();
+      document.getElementById("gasMetodoToggle").querySelectorAll("button").forEach((b,i)=>b.classList.toggle("active", i===0));
+      document.getElementById("gasMetodo").value = "efectivo";
+      showToast("Gasto guardado");
+    });
 
-  function histRow(m){
-    const icon = m.tipo === "ingreso" ? "↑" : "↓";
-    const metodoLabel = m.metodo === "efectivo" ? "Efectivo" : "Mercado Pago";
-    const cat = m.categoria ? m.categoria : "";
-    const desc = m.desc ? " · " + escapeHtml(m.desc) : "";
-    return `<div class="hist-item">
-      <div class="hist-icon ${m.tipo}">${icon}</div>
-      <div class="hist-info">
-        <div class="t1">${escapeHtml(cat)}${desc}</div>
-        <div class="t2">${fmtDate(m.fecha)} · ${metodoLabel}</div>
-      </div>
-      <div class="hist-amount ${m.tipo}">${m.tipo==="ingreso"?"+":"-"}${fmtMoney(m.monto)}</div>
-      <button class="hist-del" data-id="${m.id}" title="Eliminar">×</button>
-    </div>`;
-  }
+    // ---------- Period filter ----------
+    let currentPeriod = "hoy";
+    document.getElementById("periodSelect").addEventListener("click", function(e){
+      const btn = e.target.closest("button");
+      if(!btn) return;
+      this.querySelectorAll("button").forEach(b=>b.classList.remove("active"));
+      btn.classList.add("active");
+      currentPeriod = btn.dataset.period;
+      renderResumen();
+    });
 
-  function wireDeleteButtons(container){
-    container.querySelectorAll(".hist-del").forEach(btn=>{
-      btn.addEventListener("click", ()=>{
-        movimientos = movimientos.filter(m=>m.id !== btn.dataset.id);
-        persistMovs();
+    function inPeriod(fecha, period){
+      if(period === "todo") return true;
+      const d = new Date(fecha + "T00:00:00");
+      const now = new Date();
+      if(period === "hoy"){
+        return fecha === todayStr();
+      }
+      if(period === "semana"){
+        const start = new Date(now);
+        const day = (start.getDay()+6)%7; // lunes=0
+        start.setDate(start.getDate()-day);
+        start.setHours(0,0,0,0);
+        return d >= start;
+      }
+      if(period === "mes"){
+        return d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth();
+      }
+      return true;
+    }
+
+    // ---------- Data layer (Firestore con fallback a localStorage) ----------
+    function addMovimiento(mov){
+      if(db){
+        db.collection(MOV_COL).add(mov).catch(err=>{
+          console.warn("Error guardando en la nube, se guarda local", err);
+          mov.id = uid();
+          movimientos.push(mov);
+          save(STORAGE_KEY, movimientos);
+          renderAll();
+        });
+      } else {
+        mov.id = uid();
+        movimientos.push(mov);
+        save(STORAGE_KEY, movimientos);
+        renderAll();
+      }
+    }
+
+    function deleteMovimiento(id){
+      if(db){
+        db.collection(MOV_COL).doc(id).delete().catch(err=>console.warn(err));
+      } else {
+        movimientos = movimientos.filter(m=>m.id !== id);
+        save(STORAGE_KEY, movimientos);
+        renderAll();
+      }
+    }
+
+    function addServicio(nombre){
+      const s = { nombre, pagado:false, monto:"", mesRef: currentMonthKey() };
+      if(db){
+        db.collection(SERV_COL).add(s).catch(err=>console.warn(err));
+      } else {
+        s.id = uid();
+        servicios.push(s);
+        save(SERVICIOS_KEY, servicios);
+        renderServicios();
+      }
+    }
+
+    function updateServicioMonto(id, monto){
+      if(db){
+        db.collection(SERV_COL).doc(id).update({monto}).catch(err=>console.warn(err));
+      } else {
+        const s = servicios.find(x=>x.id===id);
+        if(s){ s.monto = monto; save(SERVICIOS_KEY, servicios); renderServiciosResumen(); }
+      }
+    }
+
+    function marcarServicioPagado(s){
+      const monto = parseFloat(s.monto);
+      if(!monto || monto <= 0){
+        showToast("Cargá un monto antes de marcar como pagado");
+        return;
+      }
+      const mov = {
+        tipo: "gasto",
+        monto: monto,
+        metodo: "efectivo",
+        categoria: "Servicios",
+        desc: s.nombre,
+        fecha: todayStr(),
+        creado: Date.now(),
+        servicioId: s.id
+      };
+      if(db){
+        db.collection(SERV_COL).doc(s.id).update({pagado:true}).catch(err=>console.warn(err));
+        db.collection(MOV_COL).add(mov).catch(err=>console.warn(err));
+      } else {
+        s.pagado = true;
+        mov.id = uid();
+        movimientos.push(mov);
+        save(STORAGE_KEY, movimientos);
+        save(SERVICIOS_KEY, servicios);
+        renderAll();
+      }
+      showToast(s.nombre + " marcado como pagado");
+    }
+
+    function reabrirServicio(s){
+      if(db){
+        db.collection(SERV_COL).doc(s.id).update({pagado:false}).catch(err=>console.warn(err));
+        db.collection(MOV_COL).where('servicioId','==',s.id).get().then(snap=>{
+          snap.forEach(doc=>doc.ref.delete().catch(err=>console.warn(err)));
+        }).catch(err=>console.warn(err));
+      } else {
+        s.pagado = false;
+        movimientos = movimientos.filter(m => m.servicioId !== s.id);
+        save(STORAGE_KEY, movimientos);
+        save(SERVICIOS_KEY, servicios);
+        renderAll();
+      }
+      showToast(s.nombre + " reabierto");
+    }
+
+    function deleteServicio(id){
+      if(db){
+        db.collection(SERV_COL).doc(id).delete().catch(err=>console.warn(err));
+      } else {
+        servicios = servicios.filter(s=>s.id !== id);
+        save(SERVICIOS_KEY, servicios);
+        renderServicios();
+      }
+    }
+
+    // ---------- Renderers ----------
+    function renderAll(){
+      renderResumen();
+      renderServicios();
+      renderHistorial();
+    }
+
+    function renderResumen(){
+      const filtered = movimientos.filter(m => inPeriod(m.fecha, currentPeriod));
+      const ingresos = filtered.filter(m=>m.tipo==="ingreso").reduce((s,m)=>s+m.monto,0);
+      const gastos = filtered.filter(m=>m.tipo==="gasto").reduce((s,m)=>s+m.monto,0);
+      document.getElementById("statIngresos").textContent = fmtMoney(ingresos);
+      document.getElementById("statGastos").textContent = fmtMoney(gastos);
+      const balance = ingresos - gastos;
+      const balEl = document.getElementById("statBalance");
+      balEl.textContent = fmtMoney(balance);
+      balEl.className = "value " + (balance>=0 ? "pos":"neg");
+
+      let efectivo = 0, mp = 0;
+      movimientos.forEach(m=>{
+        const signo = m.tipo === "ingreso" ? 1 : -1;
+        if(m.metodo === "efectivo") efectivo += signo*m.monto;
+        else mp += signo*m.monto;
+      });
+      document.getElementById("totalEfectivo").textContent = fmtMoney(efectivo);
+      document.getElementById("totalMP").textContent = fmtMoney(mp);
+      document.getElementById("totalGeneral").textContent = "Total: " + fmtMoney(efectivo+mp);
+
+      const lista = document.getElementById("resumenLista");
+      const ultimos = [...movimientos].sort((a,b)=>b.creado-a.creado).slice(0,6);
+      lista.innerHTML = ultimos.length ? ultimos.map(histRow).join("") : '<div class="empty">Todavía no hay movimientos cargados.</div>';
+      wireDeleteButtons(lista);
+    }
+
+    function histRow(m){
+      const icon = m.tipo === "ingreso" ? "↑" : "↓";
+      const metodoLabel = m.metodo === "efectivo" ? "Efectivo" : "Mercado Pago";
+      const cat = m.categoria ? m.categoria : "";
+      const desc = m.desc ? " · " + escapeHtml(m.desc) : "";
+      return `<div class="hist-item">
+        <div class="hist-icon ${m.tipo}">${icon}</div>
+        <div class="hist-info">
+          <div class="t1">${escapeHtml(cat)}${desc}</div>
+          <div class="t2">${fmtDate(m.fecha)} · ${metodoLabel}</div>
+        </div>
+        <div class="hist-amount ${m.tipo}">${m.tipo==="ingreso"?"+":"-"}${fmtMoney(m.monto)}</div>
+        <button class="hist-del" data-id="${m.id}" title="Eliminar">×</button>
+      </div>`;
+    }
+
+    function wireDeleteButtons(container){
+      container.querySelectorAll(".hist-del").forEach(btn=>{
+        btn.addEventListener("click", ()=>{
+          deleteMovimiento(btn.dataset.id);
+          showToast("Movimiento eliminado");
+        });
+      });
+    }
+
+    function renderHistorial(){
+      const lista = document.getElementById("historialLista");
+      const ordenados = [...movimientos].sort((a,b)=>b.creado-a.creado);
+      lista.innerHTML = ordenados.length ? ordenados.map(histRow).join("") : '<div class="empty">Sin movimientos todavía.</div>';
+      wireDeleteButtons(lista);
+    }
+
+    function escapeHtml(s){
+      return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+    }
+
+    // ---------- Servicios ----------
+    function renderServicios(){
+      const lista = document.getElementById("serviciosLista");
+      lista.innerHTML = servicios.length ? servicios.map(s => `
+        <div class="servicio-item ${s.pagado?'pagado':''}" data-id="${s.id}">
+          <div class="servicio-name">${escapeHtml(s.nombre)}</div>
+          <div class="servicio-actions">
+            <input type="number" class="servicio-amount" placeholder="Monto" value="${s.monto||""}" data-id="${s.id}" ${s.pagado?"disabled":""}>
+            <button class="pay-toggle ${s.pagado?'on':''}" data-id="${s.id}" title="Marcar pagado">${s.pagado?"Pagado":"Pagar"}</button>
+            <button class="del-servicio" data-id="${s.id}" title="Quitar servicio">×</button>
+          </div>
+        </div>
+      `).join("") : '<div class="empty">No hay servicios cargados.</div>';
+
+      lista.querySelectorAll(".servicio-amount").forEach(inp=>{
+        inp.addEventListener("change", ()=>{
+          updateServicioMonto(inp.dataset.id, inp.value);
+        });
+      });
+      lista.querySelectorAll(".pay-toggle").forEach(btn=>{
+        btn.addEventListener("click", ()=>{
+          const s = servicios.find(x=>x.id===btn.dataset.id);
+          if(!s) return;
+          if(!s.pagado) marcarServicioPagado(s);
+          else reabrirServicio(s);
+        });
+      });
+      lista.querySelectorAll(".del-servicio").forEach(btn=>{
+        btn.addEventListener("click", ()=>{
+          deleteServicio(btn.dataset.id);
+        });
+      });
+      renderServiciosResumen();
+    }
+
+    function renderServiciosResumen(){
+      const total = servicios.reduce((s,x)=>s+(parseFloat(x.monto)||0),0);
+      const pagados = servicios.filter(s=>s.pagado).length;
+      document.getElementById("serviciosResumen").textContent =
+        `${pagados}/${servicios.length} pagados · Total estimado: ${fmtMoney(total)}`;
+    }
+
+    document.getElementById("btnAddServicio").addEventListener("click", ()=>{
+      const input = document.getElementById("nuevoServicioNombre");
+      const nombre = input.value.trim();
+      if(!nombre) return;
+      addServicio(nombre);
+      input.value = "";
+    });
+
+    // ---------- Export CSV ----------
+    document.getElementById("btnExport").addEventListener("click", ()=>{
+      if(!movimientos.length){ showToast("No hay movimientos para exportar"); return; }
+      const header = ["Fecha","Tipo","Categoria","Descripcion","Metodo","Monto"];
+      const rows = [...movimientos].sort((a,b)=>a.creado-b.creado).map(m => [
+        m.fecha, m.tipo, m.categoria||"", (m.desc||"").replace(/"/g,'""'), m.metodo, m.monto
+      ]);
+      let csv = header.join(";") + "\n" + rows.map(r => r.map(v=>`"${v}"`).join(";")).join("\n");
+      const blob = new Blob(["﻿"+csv], {type:"text/csv;charset=utf-8;"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "finanzas-" + todayStr() + ".csv";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+
+    // ---------- Toast ----------
+    let toastTimer;
+    window.showToast = function(msg){
+      const t = document.getElementById("toast");
+      t.textContent = msg;
+      t.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(()=>t.classList.remove("show"), 2200);
+    };
+    function showToast(msg){ window.showToast(msg); }
+
+    // ---------- Sync / Init ----------
+    if (db) {
+      db.collection(MOV_COL).onSnapshot(snap => {
+        movimientos = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        save(STORAGE_KEY, movimientos);
         renderResumen();
         renderHistorial();
-        showToast("Movimiento eliminado");
+      }, err => {
+        console.warn("Firestore (movimientos) sin conexión, usando caché local", err);
+        renderAll();
       });
-    });
-  }
 
-  function renderHistorial(){
-    const lista = document.getElementById("historialLista");
-    const ordenados = [...movimientos].sort((a,b)=>b.creado-a.creado);
-    lista.innerHTML = ordenados.length ? ordenados.map(histRow).join("") : '<div class="empty">Sin movimientos todavía.</div>';
-    wireDeleteButtons(lista);
-  }
-
-  function escapeHtml(s){
-    return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  }
-
-  // ---------- Servicios ----------
-  function renderServicios(){
-    const lista = document.getElementById("serviciosLista");
-    lista.innerHTML = servicios.length ? servicios.map(s => `
-      <div class="servicio-item ${s.pagado?'pagado':''}" data-id="${s.id}">
-        <div class="servicio-name">${escapeHtml(s.nombre)}</div>
-        <div class="servicio-actions">
-          <input type="number" class="servicio-amount" placeholder="Monto" value="${s.monto||""}" data-id="${s.id}" ${s.pagado?"disabled":""}>
-          <button class="pay-toggle ${s.pagado?'on':''}" data-id="${s.id}" title="Marcar pagado">${s.pagado?"Pagado":"Pagar"}</button>
-          <button class="del-servicio" data-id="${s.id}" title="Quitar servicio">×</button>
-        </div>
-      </div>
-    `).join("") : '<div class="empty">No hay servicios cargados.</div>';
-
-    lista.querySelectorAll(".servicio-amount").forEach(inp=>{
-      inp.addEventListener("change", ()=>{
-        const s = servicios.find(x=>x.id===inp.dataset.id);
-        if(s){ s.monto = inp.value; persistServicios(); renderServiciosResumen(); }
-      });
-    });
-    lista.querySelectorAll(".pay-toggle").forEach(btn=>{
-      btn.addEventListener("click", ()=>{
-        const s = servicios.find(x=>x.id===btn.dataset.id);
-        if(!s) return;
-        if(!s.pagado){
-          const monto = parseFloat(s.monto);
-          if(!monto || monto <= 0){
-            showToast("Cargá un monto antes de marcar como pagado");
-            return;
-          }
-          s.pagado = true;
-          movimientos.push({
-            id: uid(),
-            tipo: "gasto",
-            monto: monto,
-            metodo: "efectivo",
-            categoria: "Servicios",
-            desc: s.nombre,
-            fecha: todayStr(),
-            creado: Date.now(),
-            servicioId: s.id
+      db.collection(SERV_COL).onSnapshot(snap => {
+        if (snap.empty) {
+          const batch = db.batch();
+          DEFAULT_SERVICIOS.forEach(s => {
+            const ref = db.collection(SERV_COL).doc();
+            batch.set(ref, { nombre: s.nombre, pagado:false, monto:"", mesRef: currentMonthKey() });
           });
-          persistMovs();
-          showToast(s.nombre + " marcado como pagado");
-        } else {
-          s.pagado = false;
-          movimientos = movimientos.filter(m => m.servicioId !== s.id);
-          persistMovs();
-          showToast(s.nombre + " reabierto");
+          batch.commit().catch(err => console.warn(err));
+          return;
         }
-        persistServicios();
+        servicios = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const mk = currentMonthKey();
+        servicios.forEach(s => {
+          if (s.mesRef !== mk) {
+            db.collection(SERV_COL).doc(s.id).update({ pagado:false, monto:"", mesRef: mk }).catch(err=>console.warn(err));
+          }
+        });
+        save(SERVICIOS_KEY, servicios);
         renderServicios();
-        renderResumen();
-      });
-    });
-    lista.querySelectorAll(".del-servicio").forEach(btn=>{
-      btn.addEventListener("click", ()=>{
-        servicios = servicios.filter(s=>s.id !== btn.dataset.id);
-        persistServicios();
+      }, err => {
+        console.warn("Firestore (servicios) sin conexión, usando caché local", err);
         renderServicios();
-        renderServiciosResumen();
       });
-    });
-    renderServiciosResumen();
+
+      renderAll();
+    } else {
+      renderAll();
+    }
   }
-
-  function renderServiciosResumen(){
-    const total = servicios.reduce((s,x)=>s+(parseFloat(x.monto)||0),0);
-    const pagados = servicios.filter(s=>s.pagado).length;
-    document.getElementById("serviciosResumen").textContent =
-      `${pagados}/${servicios.length} pagados · Total estimado: ${fmtMoney(total)}`;
-  }
-
-  document.getElementById("btnAddServicio").addEventListener("click", ()=>{
-    const input = document.getElementById("nuevoServicioNombre");
-    const nombre = input.value.trim();
-    if(!nombre) return;
-    servicios.push({id:uid(), nombre, pagado:false, monto:"", mesRef: currentMonthKey()});
-    persistServicios();
-    input.value = "";
-    renderServicios();
-  });
-
-  // ---------- Export CSV ----------
-  document.getElementById("btnExport").addEventListener("click", ()=>{
-    if(!movimientos.length){ showToast("No hay movimientos para exportar"); return; }
-    const header = ["Fecha","Tipo","Categoria","Descripcion","Metodo","Monto"];
-    const rows = [...movimientos].sort((a,b)=>a.creado-b.creado).map(m => [
-      m.fecha, m.tipo, m.categoria||"", (m.desc||"").replace(/"/g,'""'), m.metodo, m.monto
-    ]);
-    let csv = header.join(";") + "\n" + rows.map(r => r.map(v=>`"${v}"`).join(";")).join("\n");
-    const blob = new Blob(["﻿"+csv], {type:"text/csv;charset=utf-8;"});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "finanzas-" + todayStr() + ".csv";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  });
-
-  // ---------- Toast ----------
-  let toastTimer;
-  function showToast(msg){
-    const t = document.getElementById("toast");
-    t.textContent = msg;
-    t.classList.add("show");
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(()=>t.classList.remove("show"), 2200);
-  }
-
-  // ---------- Init ----------
-  renderResumen();
-  renderServicios();
-  renderHistorial();
 })();
 </script>
 </body>
