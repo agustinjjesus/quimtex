@@ -74,6 +74,10 @@
     font-size:.8rem;
     margin-top:10px;
   }
+  .submit-btn:disabled, input:disabled{
+    opacity:.5;
+    cursor:not-allowed;
+  }
 
   header{
     text-align:center;
@@ -338,7 +342,7 @@
     <p>Ingresá la contraseña para continuar</p>
     <input type="password" id="pwInput" placeholder="Contraseña" autocomplete="current-password">
     <button type="button" class="submit-btn ingreso" id="btnLogin">Entrar</button>
-    <div class="login-error" id="loginError">Contraseña incorrecta</div>
+    <div class="login-error" id="loginError"></div>
   </div>
 </div>
 
@@ -530,6 +534,14 @@
   // Cambiá esta contraseña por la que quieras usar vos.
   const PASSWORD = '2327';
 
+  // Límite de intentos de login: se bloquea el formulario un rato después
+  // de fallar demasiadas veces seguidas. Se guarda en localStorage (no
+  // sessionStorage) para que un simple refresh de página no lo esquive.
+  const MAX_ATTEMPTS = 5;
+  const LOCKOUT_MS = 5 * 60 * 1000; // 5 minutos
+  const ATTEMPTS_KEY = 'finanzasLoginAttempts';
+  const LOCK_KEY = 'finanzasLoginLockUntil';
+
   const MOV_COL = 'finanzasMovimientos';
   const SERV_COL = 'finanzasServicios';
 
@@ -582,6 +594,67 @@
   let servicios = load(SERVICIOS_KEY, []);
 
   // ─── LOGIN ───────────────────────────────────────────────────────────────
+  const pwInput = document.getElementById('pwInput');
+  const btnLogin = document.getElementById('btnLogin');
+  const loginError = document.getElementById('loginError');
+
+  function getAttempts(){ return parseInt(localStorage.getItem(ATTEMPTS_KEY) || '0', 10); }
+  function setAttempts(n){ try{ localStorage.setItem(ATTEMPTS_KEY, String(n)); }catch(e){} }
+  function getLockUntil(){ return parseInt(localStorage.getItem(LOCK_KEY) || '0', 10); }
+  function setLockUntil(ts){ try{ localStorage.setItem(LOCK_KEY, String(ts)); }catch(e){} }
+  function clearLock(){
+    try{ localStorage.removeItem(ATTEMPTS_KEY); localStorage.removeItem(LOCK_KEY); }catch(e){}
+  }
+
+  function formatMinSec(totalSec){
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    return m > 0 ? `${m} min ${s}s` : `${s}s`;
+  }
+
+  let lockTimer = null;
+  function applyLockState(){
+    const until = getLockUntil();
+    const remaining = until - Date.now();
+    if (remaining > 0){
+      btnLogin.disabled = true;
+      pwInput.disabled = true;
+      loginError.style.display = 'block';
+      loginError.textContent = `Demasiados intentos. Probá de nuevo en ${formatMinSec(Math.ceil(remaining/1000))}.`;
+      clearTimeout(lockTimer);
+      lockTimer = setTimeout(applyLockState, 1000);
+      return true;
+    }
+    if (until){ clearLock(); }
+    btnLogin.disabled = false;
+    pwInput.disabled = false;
+    return false;
+  }
+
+  function doLogin(){
+    if (applyLockState()) return;
+    const val = pwInput.value;
+    if(val === PASSWORD){
+      clearLock();
+      sessionStorage.setItem('finanzasAuth', 'ok');
+      showApp();
+    } else {
+      const attempts = getAttempts() + 1;
+      setAttempts(attempts);
+      if (attempts >= MAX_ATTEMPTS){
+        setLockUntil(Date.now() + LOCKOUT_MS);
+        applyLockState();
+      } else {
+        loginError.style.display = 'block';
+        loginError.textContent = `Contraseña incorrecta (${MAX_ATTEMPTS - attempts} intentos antes de bloquearse)`;
+      }
+    }
+  }
+  btnLogin.addEventListener('click', doLogin);
+  pwInput.addEventListener('keydown', e => { if(e.key === 'Enter') doLogin(); });
+
+  applyLockState();
+
   function showApp(){
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('mainWrap').style.display = 'block';
@@ -589,17 +662,6 @@
     if(!db){ badge.classList.add('off'); badge.lastChild.textContent = ' Sin conexión a la nube'; }
     initApp();
   }
-  function doLogin(){
-    const val = document.getElementById('pwInput').value;
-    if(val === PASSWORD){
-      sessionStorage.setItem('finanzasAuth', 'ok');
-      showApp();
-    } else {
-      document.getElementById('loginError').style.display = 'block';
-    }
-  }
-  document.getElementById('btnLogin').addEventListener('click', doLogin);
-  document.getElementById('pwInput').addEventListener('keydown', e => { if(e.key === 'Enter') doLogin(); });
 
   if (sessionStorage.getItem('finanzasAuth') === 'ok') {
     showApp();
