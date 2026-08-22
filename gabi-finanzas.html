@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Gabi Finanzas — Control diario Bet30</title>
+<title>Gabi Finanzas</title>
 <meta name="description" content="Control diario de ingresos y gastos: efectivo, Mercado Pago y servicios.">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💰</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%233ddc97%22/><text x=%2250%22 y=%2268%22 font-family=%22Arial,sans-serif%22 font-weight=%22800%22 font-size=%2258%22 fill=%22%230f1420%22 text-anchor=%22middle%22>G</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -205,7 +205,6 @@
   }
   .servicio-item:last-child{border-bottom:none;}
   .servicio-name{display:flex;align-items:center;gap:10px;font-size:.95rem;font-weight:500;}
-  .servicio-name .icon{font-size:1.2rem;}
   .servicio-item.pagado .servicio-name{color:var(--text-dim);text-decoration:line-through;}
   .servicio-actions{display:flex;align-items:center;gap:8px;}
   .servicio-amount{
@@ -220,17 +219,20 @@
     font-size:.9rem;
   }
   .pay-toggle{
-    width:36px;height:36px;
-    border-radius:50%;
+    border-radius:999px;
     border:1px solid var(--border);
     background:var(--bg-soft);
     color:var(--text-dim);
+    font-family:var(--font-body);
+    font-weight:600;
     cursor:pointer;
-    font-size:1rem;
+    font-size:.78rem;
+    padding:7px 12px;
     flex-shrink:0;
+    white-space:nowrap;
   }
   .pay-toggle.on{background:var(--green-dim);border-color:var(--green);color:var(--green);}
-  .del-servicio{background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer;padding:4px 6px;}
+  .del-servicio{background:none;border:none;color:var(--text-dim);font-family:var(--font-body);font-size:1.05rem;font-weight:600;cursor:pointer;padding:4px 8px;}
   .add-servicio-row{display:flex;gap:8px;margin-top:14px;}
   .add-servicio-row input{flex:1;}
   .add-servicio-row button{
@@ -262,7 +264,7 @@
   .hist-amount{font-family:var(--font-heading);font-variant-numeric:tabular-nums;font-weight:700;font-size:.95rem;white-space:nowrap;}
   .hist-amount.ingreso{color:var(--green);}
   .hist-amount.gasto{color:var(--red);}
-  .hist-del{background:none;border:none;color:var(--text-dim);font-size:1rem;cursor:pointer;padding:4px 2px 4px 8px;}
+  .hist-del{background:none;border:none;color:var(--text-dim);font-family:var(--font-body);font-size:1.05rem;font-weight:600;cursor:pointer;padding:4px 2px 4px 8px;}
 
   .empty{text-align:center;color:var(--text-dim);padding:24px 10px;font-size:.9rem;}
 
@@ -288,8 +290,7 @@
 <div class="wrap">
 
   <header>
-    <h1>💰 Finanzas de Gabi</h1>
-    <p>Bet30 · Control diario de ingresos y gastos</p>
+    <h1>Finanzas de Gabi</h1>
   </header>
 
   <div class="tabs">
@@ -327,11 +328,11 @@
       <h2>Dinero disponible (total acumulado)</h2>
       <div class="method-split">
         <div class="method-chip">
-          <div class="m-label">💵 Efectivo</div>
+          <div class="m-label">Efectivo</div>
           <div class="m-value" id="totalEfectivo">$0</div>
         </div>
         <div class="method-chip">
-          <div class="m-label">📲 Mercado Pago</div>
+          <div class="m-label">Mercado Pago</div>
           <div class="m-value" id="totalMP">$0</div>
         </div>
       </div>
@@ -347,15 +348,15 @@
   <!-- REGISTRAR -->
   <section class="view" id="view-mover">
     <div class="card">
-      <h2>➕ Nuevo ingreso</h2>
+      <h2>Nuevo ingreso</h2>
       <form id="formIngreso">
         <label>Monto</label>
         <input type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00" id="ingMonto" required>
 
         <label>Cobrado en</label>
         <div class="method-toggle" id="ingMetodoToggle">
-          <button type="button" class="sel-efectivo active" data-val="efectivo">💵 Efectivo</button>
-          <button type="button" class="sel-mp" data-val="mp">📲 Mercado Pago</button>
+          <button type="button" class="sel-efectivo active" data-val="efectivo">Efectivo</button>
+          <button type="button" class="sel-mp" data-val="mp">Mercado Pago</button>
         </div>
         <input type="hidden" id="ingMetodo" value="efectivo">
 
@@ -375,15 +376,15 @@
     </div>
 
     <div class="card">
-      <h2>➖ Nuevo gasto</h2>
+      <h2>Nuevo gasto</h2>
       <form id="formGasto">
         <label>Monto</label>
         <input type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00" id="gasMonto" required>
 
         <label>Pagado con</label>
         <div class="method-toggle" id="gasMetodoToggle">
-          <button type="button" class="sel-efectivo active" data-val="efectivo">💵 Efectivo</button>
-          <button type="button" class="sel-mp" data-val="mp">📲 Mercado Pago</button>
+          <button type="button" class="sel-efectivo active" data-val="efectivo">Efectivo</button>
+          <button type="button" class="sel-mp" data-val="mp">Mercado Pago</button>
         </div>
         <input type="hidden" id="gasMetodo" value="efectivo">
 
@@ -416,7 +417,7 @@
   <!-- SERVICIOS -->
   <section class="view" id="view-servicios">
     <div class="card">
-      <h2>🧾 Servicios del mes</h2>
+      <h2>Servicios del mes</h2>
       <div id="serviciosLista"></div>
       <div class="add-servicio-row">
         <input type="text" id="nuevoServicioNombre" placeholder="Agregar servicio (ej: Netflix)">
@@ -424,7 +425,7 @@
       </div>
       <div class="servicios-summary" id="serviciosResumen"></div>
     </div>
-    <div class="footer-note">Marcá ✓ cuando pagues un servicio. Al tildarlo se registra automáticamente como gasto del día con categoría "Servicios".</div>
+    <div class="footer-note">Marcá "Pagar" cuando pagues un servicio. Se registra automáticamente como gasto del día con categoría "Servicios".</div>
   </section>
 
   <!-- HISTORIAL -->
@@ -433,7 +434,7 @@
       <h2>Todos los movimientos</h2>
       <div id="historialLista"></div>
     </div>
-    <button class="export-btn" id="btnExport" style="width:100%;margin-bottom:20px;">⬇️ Exportar CSV (respaldo)</button>
+    <button class="export-btn" id="btnExport" style="width:100%;margin-bottom:20px;">Exportar CSV (respaldo)</button>
   </section>
 
   <div class="footer-note">
@@ -452,13 +453,13 @@
   const SERVICIOS_KEY = "gabiFinanzas.servicios.v1";
 
   const DEFAULT_SERVICIOS = [
-    {id: uid(), nombre: "Luz", icon:"💡"},
-    {id: uid(), nombre: "Agua", icon:"🚿"},
-    {id: uid(), nombre: "Gas", icon:"🔥"},
-    {id: uid(), nombre: "Internet", icon:"🌐"},
-    {id: uid(), nombre: "Celular", icon:"📱"},
-    {id: uid(), nombre: "Alquiler", icon:"🏠"},
-    {id: uid(), nombre: "Expensas", icon:"🏢"},
+    {id: uid(), nombre: "Luz"},
+    {id: uid(), nombre: "Agua"},
+    {id: uid(), nombre: "Gas"},
+    {id: uid(), nombre: "Internet"},
+    {id: uid(), nombre: "Celular"},
+    {id: uid(), nombre: "Alquiler"},
+    {id: uid(), nombre: "Expensas"},
   ];
 
   function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
@@ -559,7 +560,7 @@
     document.getElementById("ingFecha").value = todayStr();
     document.getElementById("ingMetodoToggle").querySelectorAll("button").forEach((b,i)=>b.classList.toggle("active", i===0));
     document.getElementById("ingMetodo").value = "efectivo";
-    showToast("Ingreso guardado ✅");
+    showToast("Ingreso guardado");
     renderResumen();
   });
 
@@ -582,7 +583,7 @@
     document.getElementById("gasFecha").value = todayStr();
     document.getElementById("gasMetodoToggle").querySelectorAll("button").forEach((b,i)=>b.classList.toggle("active", i===0));
     document.getElementById("gasMetodo").value = "efectivo";
-    showToast("Gasto guardado ✅");
+    showToast("Gasto guardado");
     renderResumen();
   });
 
@@ -648,7 +649,7 @@
 
   function histRow(m){
     const icon = m.tipo === "ingreso" ? "↑" : "↓";
-    const metodoLabel = m.metodo === "efectivo" ? "💵 Efectivo" : "📲 Mercado Pago";
+    const metodoLabel = m.metodo === "efectivo" ? "Efectivo" : "Mercado Pago";
     const cat = m.categoria ? m.categoria : "";
     const desc = m.desc ? " · " + escapeHtml(m.desc) : "";
     return `<div class="hist-item">
@@ -658,7 +659,7 @@
         <div class="t2">${fmtDate(m.fecha)} · ${metodoLabel}</div>
       </div>
       <div class="hist-amount ${m.tipo}">${m.tipo==="ingreso"?"+":"-"}${fmtMoney(m.monto)}</div>
-      <button class="hist-del" data-id="${m.id}" title="Eliminar">🗑️</button>
+      <button class="hist-del" data-id="${m.id}" title="Eliminar">×</button>
     </div>`;
   }
 
@@ -690,11 +691,11 @@
     const lista = document.getElementById("serviciosLista");
     lista.innerHTML = servicios.length ? servicios.map(s => `
       <div class="servicio-item ${s.pagado?'pagado':''}" data-id="${s.id}">
-        <div class="servicio-name"><span class="icon">${s.icon||"🧾"}</span> ${escapeHtml(s.nombre)}</div>
+        <div class="servicio-name">${escapeHtml(s.nombre)}</div>
         <div class="servicio-actions">
           <input type="number" class="servicio-amount" placeholder="Monto" value="${s.monto||""}" data-id="${s.id}" ${s.pagado?"disabled":""}>
-          <button class="pay-toggle ${s.pagado?'on':''}" data-id="${s.id}" title="Marcar pagado">✓</button>
-          <button class="del-servicio" data-id="${s.id}" title="Quitar servicio">✕</button>
+          <button class="pay-toggle ${s.pagado?'on':''}" data-id="${s.id}" title="Marcar pagado">${s.pagado?"Pagado":"Pagar"}</button>
+          <button class="del-servicio" data-id="${s.id}" title="Quitar servicio">×</button>
         </div>
       </div>
     `).join("") : '<div class="empty">No hay servicios cargados.</div>';
@@ -728,7 +729,7 @@
             servicioId: s.id
           });
           persistMovs();
-          showToast(s.nombre + " marcado como pagado ✅");
+          showToast(s.nombre + " marcado como pagado");
         } else {
           s.pagado = false;
           movimientos = movimientos.filter(m => m.servicioId !== s.id);
@@ -762,7 +763,7 @@
     const input = document.getElementById("nuevoServicioNombre");
     const nombre = input.value.trim();
     if(!nombre) return;
-    servicios.push({id:uid(), nombre, icon:"🧾", pagado:false, monto:"", mesRef: currentMonthKey()});
+    servicios.push({id:uid(), nombre, pagado:false, monto:"", mesRef: currentMonthKey()});
     persistServicios();
     input.value = "";
     renderServicios();
