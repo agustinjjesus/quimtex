@@ -113,6 +113,7 @@
     border-radius:999px;
     margin-bottom:18px;
     border:1px solid var(--border);
+    overflow-x:auto;
   }
   .tab-btn{
     flex:1;
@@ -126,6 +127,7 @@
     font-weight:600;
     cursor:pointer;
     transition:.15s;
+    white-space:nowrap;
   }
   .tab-btn.active{
     background:var(--card-2);
@@ -209,6 +211,7 @@
   }
   input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
 
   .method-toggle{display:flex;gap:8px;margin-top:5px;}
   .method-toggle button{
@@ -241,6 +244,7 @@
   }
   .submit-btn.ingreso{background:var(--green);}
   .submit-btn.gasto{background:var(--red);color:#1a0a0c;}
+  .submit-btn.tarjeta{background:var(--yellow);}
 
   /* Servicios */
   .servicio-item{
@@ -290,6 +294,19 @@
   }
   .servicios-summary{font-size:.85rem;color:var(--text-dim);margin-top:12px;text-align:right;}
 
+  /* Tarjeta - compras en cuotas */
+  .compra-item{
+    padding:12px 4px;
+    border-bottom:1px solid var(--border);
+  }
+  .compra-item:last-child{border-bottom:none;}
+  .compra-item.completada .compra-nombre{color:var(--text-dim);text-decoration:line-through;}
+  .compra-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;}
+  .compra-nombre{font-size:.95rem;font-weight:600;}
+  .compra-detalle{font-size:.78rem;color:var(--text-dim);margin-bottom:8px;}
+  .compra-actions{display:flex;align-items:center;gap:8px;}
+  .compra-actions .pay-toggle{flex:1;text-align:center;}
+
   /* Historial */
   .hist-item{
     display:flex;
@@ -306,12 +323,14 @@
   }
   .hist-icon.ingreso{background:var(--green-dim);}
   .hist-icon.gasto{background:var(--red-dim);}
+  .hist-icon.tarjeta{background:#3d3320;}
   .hist-info{flex:1;min-width:0;}
   .hist-info .t1{font-size:.92rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .hist-info .t2{font-size:.75rem;color:var(--text-dim);}
   .hist-amount{font-family:var(--font-heading);font-variant-numeric:tabular-nums;font-weight:700;font-size:.95rem;white-space:nowrap;}
   .hist-amount.ingreso{color:var(--green);}
   .hist-amount.gasto{color:var(--red);}
+  .hist-amount.tarjeta{color:var(--yellow);}
   .hist-del{background:none;border:none;color:var(--text-dim);font-family:var(--font-body);font-size:1.05rem;font-weight:600;cursor:pointer;padding:4px 2px 4px 8px;}
 
   .empty{text-align:center;color:var(--text-dim);padding:24px 10px;font-size:.9rem;}
@@ -357,6 +376,7 @@
     <button class="tab-btn active" data-view="resumen">Resumen</button>
     <button class="tab-btn" data-view="mover">Registrar</button>
     <button class="tab-btn" data-view="servicios">Servicios</button>
+    <button class="tab-btn" data-view="tarjeta">Tarjeta</button>
     <button class="tab-btn" data-view="historial">Historial</button>
   </div>
 
@@ -497,6 +517,75 @@
     <div class="footer-note">Marcá "Pagar" cuando pagues un servicio. Se registra automáticamente como gasto del día con categoría "Servicios".</div>
   </section>
 
+  <!-- TARJETA -->
+  <section class="view" id="view-tarjeta">
+    <div class="stat-grid">
+      <div class="stat">
+        <div class="label">Debés por mes</div>
+        <div class="value neg" id="tarjetaMensual">$0</div>
+      </div>
+      <div class="stat">
+        <div class="label">Total pendiente</div>
+        <div class="value neg" id="tarjetaPendiente">$0</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Agregar compra en cuotas</h2>
+      <form id="formCompra">
+        <label>Nombre / descripción</label>
+        <input type="text" id="compraNombre" placeholder="Ej: Zapatillas, heladera, etc." required>
+
+        <div class="row2">
+          <div>
+            <label>Cuota mensual</label>
+            <input type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00" id="compraCuota" required>
+          </div>
+          <div>
+            <label>Cuotas restantes</label>
+            <input type="number" inputmode="numeric" step="1" min="1" placeholder="0" id="compraCuotasRestantes" required>
+          </div>
+        </div>
+
+        <button type="submit" class="submit-btn tarjeta">Agregar compra</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Compras en cuotas</h2>
+      <div id="comprasLista"></div>
+    </div>
+
+    <div class="card">
+      <h2>Registrar pago extra a la tarjeta</h2>
+      <form id="formPagoTarjeta">
+        <label>Monto</label>
+        <input type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00" id="pagoTarjetaMonto" required>
+
+        <div class="row2">
+          <div>
+            <label>Fecha</label>
+            <input type="date" id="pagoTarjetaFecha" required>
+          </div>
+          <div>
+            <label>Descripción (opcional)</label>
+            <input type="text" id="pagoTarjetaDesc" placeholder="Ej: Descuento de sueldo">
+          </div>
+        </div>
+
+        <button type="submit" class="submit-btn tarjeta">Registrar pago</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Pagos extra registrados</h2>
+      <div id="pagosTarjetaLista"></div>
+      <div class="servicios-summary" id="pagosTarjetaResumen">Total pagado: $0</div>
+    </div>
+
+    <div class="footer-note">"Debés por mes" suma la cuota mensual de las compras activas. "Total pendiente" suma lo que falta pagar de cada compra (cuota × cuotas restantes) menos los pagos extra que registres acá.</div>
+  </section>
+
   <!-- HISTORIAL -->
   <section class="view" id="view-historial">
     <div class="card">
@@ -544,6 +633,8 @@
 
   const MOV_COL = 'finanzasMovimientos';
   const SERV_COL = 'finanzasServicios';
+  const TARJETA_COMPRAS_COL = 'tarjetaCompras';
+  const TARJETA_PAGOS_COL = 'tarjetaPagos';
 
   let db = null;
   if (FIREBASE_ENABLED && typeof firebase !== 'undefined') {
@@ -553,6 +644,8 @@
 
   const STORAGE_KEY = "finanzasPersonales.cache.movimientos.v1";
   const SERVICIOS_KEY = "finanzasPersonales.cache.servicios.v1";
+  const TARJETA_COMPRAS_KEY = "finanzasPersonales.cache.tarjetaCompras.v1";
+  const TARJETA_PAGOS_KEY = "finanzasPersonales.cache.tarjetaPagos.v1";
 
   const DEFAULT_SERVICIOS = [
     { nombre: "Luz" },
@@ -592,6 +685,8 @@
 
   let movimientos = load(STORAGE_KEY, []);
   let servicios = load(SERVICIOS_KEY, []);
+  let tarjetaCompras = load(TARJETA_COMPRAS_KEY, []);
+  let tarjetaPagos = load(TARJETA_PAGOS_KEY, []);
 
   // ─── LOGIN ───────────────────────────────────────────────────────────────
   const pwInput = document.getElementById('pwInput');
@@ -684,6 +779,7 @@
         document.getElementById("view-"+btn.dataset.view).classList.add("active");
         if(btn.dataset.view === "resumen") renderResumen();
         if(btn.dataset.view === "servicios") renderServicios();
+        if(btn.dataset.view === "tarjeta") renderTarjeta();
         if(btn.dataset.view === "historial") renderHistorial();
       });
     });
@@ -705,6 +801,7 @@
 
     document.getElementById("ingFecha").value = todayStr();
     document.getElementById("gasFecha").value = todayStr();
+    document.getElementById("pagoTarjetaFecha").value = todayStr();
 
     // ---------- Forms ----------
     document.getElementById("formIngreso").addEventListener("submit", function(e){
@@ -747,6 +844,35 @@
       document.getElementById("gasMetodoToggle").querySelectorAll("button").forEach((b,i)=>b.classList.toggle("active", i===0));
       document.getElementById("gasMetodo").value = "efectivo";
       showToast("Gasto guardado");
+    });
+
+    document.getElementById("formCompra").addEventListener("submit", function(e){
+      e.preventDefault();
+      const cuota = parseFloat(document.getElementById("compraCuota").value);
+      const restantes = parseInt(document.getElementById("compraCuotasRestantes").value, 10);
+      const nombre = document.getElementById("compraNombre").value.trim();
+      if(!nombre){ showToast("Ponele un nombre a la compra"); return; }
+      if(!cuota || cuota <= 0){ showToast("Ingresá una cuota válida"); return; }
+      if(!restantes || restantes <= 0){ showToast("Ingresá cuántas cuotas restan"); return; }
+      addCompra({ nombre, cuota, cuotasRestantes: restantes, creado: Date.now() });
+      this.reset();
+      showToast("Compra agregada");
+    });
+
+    document.getElementById("formPagoTarjeta").addEventListener("submit", function(e){
+      e.preventDefault();
+      const monto = parseFloat(document.getElementById("pagoTarjetaMonto").value);
+      if(!monto || monto <= 0){ showToast("Ingresá un monto válido"); return; }
+      const pago = {
+        monto: monto,
+        fecha: document.getElementById("pagoTarjetaFecha").value || todayStr(),
+        desc: document.getElementById("pagoTarjetaDesc").value.trim(),
+        creado: Date.now()
+      };
+      addPagoTarjeta(pago);
+      this.reset();
+      document.getElementById("pagoTarjetaFecha").value = todayStr();
+      showToast("Pago registrado");
     });
 
     // ---------- Period filter ----------
@@ -885,10 +1011,66 @@
       }
     }
 
+    // ---------- Tarjeta: data layer ----------
+    function addCompra(compra){
+      if(db){
+        db.collection(TARJETA_COMPRAS_COL).add(compra).catch(err=>console.warn(err));
+      } else {
+        compra.id = uid();
+        tarjetaCompras.push(compra);
+        save(TARJETA_COMPRAS_KEY, tarjetaCompras);
+        renderTarjeta();
+      }
+    }
+
+    function pagarCuotaCompra(c){
+      const nuevasRestantes = Math.max(0, (c.cuotasRestantes||0) - 1);
+      if(db){
+        db.collection(TARJETA_COMPRAS_COL).doc(c.id).update({cuotasRestantes: nuevasRestantes}).catch(err=>console.warn(err));
+      } else {
+        c.cuotasRestantes = nuevasRestantes;
+        save(TARJETA_COMPRAS_KEY, tarjetaCompras);
+        renderTarjeta();
+      }
+      showToast("Cuota de " + c.nombre + " descontada");
+    }
+
+    function deleteCompra(id){
+      if(db){
+        db.collection(TARJETA_COMPRAS_COL).doc(id).delete().catch(err=>console.warn(err));
+      } else {
+        tarjetaCompras = tarjetaCompras.filter(c=>c.id !== id);
+        save(TARJETA_COMPRAS_KEY, tarjetaCompras);
+        renderTarjeta();
+      }
+    }
+
+    function addPagoTarjeta(pago){
+      if(db){
+        db.collection(TARJETA_PAGOS_COL).add(pago).catch(err=>console.warn(err));
+      } else {
+        pago.id = uid();
+        tarjetaPagos.push(pago);
+        save(TARJETA_PAGOS_KEY, tarjetaPagos);
+        renderTarjeta();
+      }
+    }
+
+    function deletePagoTarjeta(id){
+      if(db){
+        db.collection(TARJETA_PAGOS_COL).doc(id).delete().catch(err=>console.warn(err));
+      } else {
+        tarjetaPagos = tarjetaPagos.filter(p=>p.id !== id);
+        save(TARJETA_PAGOS_KEY, tarjetaPagos);
+        renderTarjeta();
+      }
+    }
+
     // ---------- Renderers ----------
     function renderAll(){
       renderResumen();
       renderServicios();
+      renderTarjeta();
       renderHistorial();
     }
 
@@ -1005,6 +1187,71 @@
       input.value = "";
     });
 
+    // ---------- Tarjeta ----------
+    function renderTarjeta(){
+      const activas = tarjetaCompras.filter(c => (c.cuotasRestantes||0) > 0);
+      const mensual = activas.reduce((s,c)=>s + (c.cuota||0), 0);
+      const totalCompras = activas.reduce((s,c)=>s + (c.cuota||0) * (c.cuotasRestantes||0), 0);
+      const totalPagos = tarjetaPagos.reduce((s,p)=>s + (p.monto||0), 0);
+      const pendiente = totalCompras - totalPagos;
+
+      document.getElementById("tarjetaMensual").textContent = fmtMoney(mensual);
+      document.getElementById("tarjetaPendiente").textContent = fmtMoney(pendiente);
+
+      const comprasLista = document.getElementById("comprasLista");
+      const ordenadas = [...tarjetaCompras].sort((a,b)=>b.creado-a.creado);
+      comprasLista.innerHTML = ordenadas.length ? ordenadas.map(c => {
+        const restantes = c.cuotasRestantes||0;
+        const completada = restantes <= 0;
+        const montoRestante = (c.cuota||0) * restantes;
+        return `<div class="compra-item ${completada?'completada':''}" data-id="${c.id}">
+          <div class="compra-top">
+            <div class="compra-nombre">${escapeHtml(c.nombre)}</div>
+            <button class="del-compra" data-id="${c.id}" title="Quitar compra">×</button>
+          </div>
+          <div class="compra-detalle">${fmtMoney(c.cuota)} / mes · ${restantes} cuota${restantes===1?'':'s'} restante${restantes===1?'':'s'} · queda ${fmtMoney(montoRestante)}</div>
+          <div class="compra-actions">
+            <button class="pay-toggle compra-pagar" data-id="${c.id}" ${completada?'disabled':''}>${completada?'Completada':'Descontar cuota de este mes'}</button>
+          </div>
+        </div>`;
+      }).join("") : '<div class="empty">No hay compras en cuotas cargadas.</div>';
+
+      comprasLista.querySelectorAll(".compra-pagar").forEach(btn=>{
+        btn.addEventListener("click", ()=>{
+          const c = tarjetaCompras.find(x=>x.id===btn.dataset.id);
+          if(c) pagarCuotaCompra(c);
+        });
+      });
+      comprasLista.querySelectorAll(".del-compra").forEach(btn=>{
+        btn.addEventListener("click", ()=>{
+          deleteCompra(btn.dataset.id);
+        });
+      });
+
+      const pagosLista = document.getElementById("pagosTarjetaLista");
+      const pagosOrdenados = [...tarjetaPagos].sort((a,b)=>b.creado-a.creado);
+      pagosLista.innerHTML = pagosOrdenados.length ? pagosOrdenados.map(p => `
+        <div class="hist-item">
+          <div class="hist-icon tarjeta">↓</div>
+          <div class="hist-info">
+            <div class="t1">${p.desc ? escapeHtml(p.desc) : 'Pago a la tarjeta'}</div>
+            <div class="t2">${fmtDate(p.fecha)}</div>
+          </div>
+          <div class="hist-amount tarjeta">${fmtMoney(p.monto)}</div>
+          <button class="hist-del" data-id="${p.id}" title="Eliminar">×</button>
+        </div>
+      `).join("") : '<div class="empty">Todavía no registraste pagos extra.</div>';
+
+      pagosLista.querySelectorAll(".hist-del").forEach(btn=>{
+        btn.addEventListener("click", ()=>{
+          deletePagoTarjeta(btn.dataset.id);
+          showToast("Pago eliminado");
+        });
+      });
+
+      document.getElementById("pagosTarjetaResumen").textContent = "Total pagado: " + fmtMoney(totalPagos);
+    }
+
     // ---------- Export CSV ----------
     document.getElementById("btnExport").addEventListener("click", ()=>{
       if(!movimientos.length){ showToast("No hay movimientos para exportar"); return; }
@@ -1069,6 +1316,24 @@
       }, err => {
         console.warn("Firestore (servicios) sin conexión, usando caché local", err);
         renderServicios();
+      });
+
+      db.collection(TARJETA_COMPRAS_COL).onSnapshot(snap => {
+        tarjetaCompras = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        save(TARJETA_COMPRAS_KEY, tarjetaCompras);
+        renderTarjeta();
+      }, err => {
+        console.warn("Firestore (tarjeta compras) sin conexión, usando caché local", err);
+        renderTarjeta();
+      });
+
+      db.collection(TARJETA_PAGOS_COL).onSnapshot(snap => {
+        tarjetaPagos = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        save(TARJETA_PAGOS_KEY, tarjetaPagos);
+        renderTarjeta();
+      }, err => {
+        console.warn("Firestore (tarjeta pagos) sin conexión, usando caché local", err);
+        renderTarjeta();
       });
 
       renderAll();
