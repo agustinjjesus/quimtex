@@ -644,7 +644,6 @@
     const lista = document.getElementById("resumenLista");
     const ultimos = [...movimientos].sort((a,b)=>b.creado-a.creado).slice(0,6);
     lista.innerHTML = ultimos.length ? ultimos.map(histRow).join("") : '<div class="empty">Todavía no hay movimientos cargados.</div>';
-    wireDeleteButtons(lista);
   }
 
   function histRow(m){
@@ -663,23 +662,32 @@
     </div>`;
   }
 
-  function wireDeleteButtons(container){
-    container.querySelectorAll(".hist-del").forEach(btn=>{
-      btn.addEventListener("click", ()=>{
-        movimientos = movimientos.filter(m=>m.id !== btn.dataset.id);
-        persistMovs();
-        renderResumen();
-        renderHistorial();
-        showToast("Movimiento eliminado");
-      });
-    });
+  function deleteMovimientoPorId(id){
+    movimientos = movimientos.filter(m=>m.id !== id);
+    persistMovs();
+    renderResumen();
+    renderHistorial();
+    showToast("Movimiento eliminado");
   }
+
+  // Un solo listener fijo por lista (no se recrea en cada render) para que
+  // los botones sigan respondiendo al toque en el celular después de
+  // re-dibujar el contenido con innerHTML.
+  document.getElementById("resumenLista").addEventListener("click", e=>{
+    const btn = e.target.closest(".hist-del");
+    if(!btn) return;
+    deleteMovimientoPorId(btn.dataset.id);
+  });
+  document.getElementById("historialLista").addEventListener("click", e=>{
+    const btn = e.target.closest(".hist-del");
+    if(!btn) return;
+    deleteMovimientoPorId(btn.dataset.id);
+  });
 
   function renderHistorial(){
     const lista = document.getElementById("historialLista");
     const ordenados = [...movimientos].sort((a,b)=>b.creado-a.creado);
     lista.innerHTML = ordenados.length ? ordenados.map(histRow).join("") : '<div class="empty">Sin movimientos todavía.</div>';
-    wireDeleteButtons(lista);
   }
 
   function escapeHtml(s){
@@ -699,58 +707,64 @@
         </div>
       </div>
     `).join("") : '<div class="empty">No hay servicios cargados.</div>';
-
-    lista.querySelectorAll(".servicio-amount").forEach(inp=>{
-      inp.addEventListener("change", ()=>{
-        const s = servicios.find(x=>x.id===inp.dataset.id);
-        if(s){ s.monto = inp.value; persistServicios(); renderServiciosResumen(); }
-      });
-    });
-    lista.querySelectorAll(".pay-toggle").forEach(btn=>{
-      btn.addEventListener("click", ()=>{
-        const s = servicios.find(x=>x.id===btn.dataset.id);
-        if(!s) return;
-        if(!s.pagado){
-          const monto = parseFloat(s.monto);
-          if(!monto || monto <= 0){
-            showToast("Cargá un monto antes de marcar como pagado");
-            return;
-          }
-          s.pagado = true;
-          movimientos.push({
-            id: uid(),
-            tipo: "gasto",
-            monto: monto,
-            metodo: "efectivo",
-            categoria: "Servicios",
-            desc: s.nombre,
-            fecha: todayStr(),
-            creado: Date.now(),
-            servicioId: s.id
-          });
-          persistMovs();
-          showToast(s.nombre + " marcado como pagado");
-        } else {
-          s.pagado = false;
-          movimientos = movimientos.filter(m => m.servicioId !== s.id);
-          persistMovs();
-          showToast(s.nombre + " reabierto");
-        }
-        persistServicios();
-        renderServicios();
-        renderResumen();
-      });
-    });
-    lista.querySelectorAll(".del-servicio").forEach(btn=>{
-      btn.addEventListener("click", ()=>{
-        servicios = servicios.filter(s=>s.id !== btn.dataset.id);
-        persistServicios();
-        renderServicios();
-        renderServiciosResumen();
-      });
-    });
     renderServiciosResumen();
   }
+
+  function marcarOReabrirServicio(s){
+    if(!s.pagado){
+      const monto = parseFloat(s.monto);
+      if(!monto || monto <= 0){
+        showToast("Cargá un monto antes de marcar como pagado");
+        return;
+      }
+      s.pagado = true;
+      movimientos.push({
+        id: uid(),
+        tipo: "gasto",
+        monto: monto,
+        metodo: "efectivo",
+        categoria: "Servicios",
+        desc: s.nombre,
+        fecha: todayStr(),
+        creado: Date.now(),
+        servicioId: s.id
+      });
+      persistMovs();
+      showToast(s.nombre + " marcado como pagado");
+    } else {
+      s.pagado = false;
+      movimientos = movimientos.filter(m => m.servicioId !== s.id);
+      persistMovs();
+      showToast(s.nombre + " reabierto");
+    }
+    persistServicios();
+    renderServicios();
+    renderResumen();
+  }
+
+  // Listeners fijos sobre el contenedor (no se recrean en cada render) para
+  // que los botones sigan respondiendo al toque después de re-dibujar.
+  const serviciosListaEl = document.getElementById("serviciosLista");
+  serviciosListaEl.addEventListener("change", e=>{
+    const inp = e.target.closest(".servicio-amount");
+    if(!inp) return;
+    const s = servicios.find(x=>x.id===inp.dataset.id);
+    if(s){ s.monto = inp.value; persistServicios(); renderServiciosResumen(); }
+  });
+  serviciosListaEl.addEventListener("click", e=>{
+    const payBtn = e.target.closest(".pay-toggle");
+    if(payBtn){
+      const s = servicios.find(x=>x.id===payBtn.dataset.id);
+      if(s) marcarOReabrirServicio(s);
+      return;
+    }
+    const delBtn = e.target.closest(".del-servicio");
+    if(delBtn){
+      servicios = servicios.filter(s=>s.id !== delBtn.dataset.id);
+      persistServicios();
+      renderServicios();
+    }
+  });
 
   function renderServiciosResumen(){
     const total = servicios.reduce((s,x)=>s+(parseFloat(x.monto)||0),0);
