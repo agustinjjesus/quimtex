@@ -1035,7 +1035,6 @@
       const lista = document.getElementById("resumenLista");
       const ultimos = [...movimientos].sort((a,b)=>b.creado-a.creado).slice(0,6);
       lista.innerHTML = ultimos.length ? ultimos.map(histRow).join("") : '<div class="empty">Todavía no hay movimientos cargados.</div>';
-      wireDeleteButtons(lista);
     }
 
     function histRow(m){
@@ -1054,20 +1053,26 @@
       </div>`;
     }
 
-    function wireDeleteButtons(container){
-      container.querySelectorAll(".hist-del").forEach(btn=>{
-        btn.addEventListener("click", ()=>{
-          deleteMovimiento(btn.dataset.id);
-          showToast("Movimiento eliminado");
-        });
-      });
-    }
+    // Listeners fijos por contenedor (no se recrean en cada render) para
+    // que los botones sigan respondiendo al toque en el celular después de
+    // re-dibujar el contenido con innerHTML.
+    document.getElementById("resumenLista").addEventListener("click", e=>{
+      const btn = e.target.closest(".hist-del");
+      if(!btn) return;
+      deleteMovimiento(btn.dataset.id);
+      showToast("Movimiento eliminado");
+    });
+    document.getElementById("historialLista").addEventListener("click", e=>{
+      const btn = e.target.closest(".hist-del");
+      if(!btn) return;
+      deleteMovimiento(btn.dataset.id);
+      showToast("Movimiento eliminado");
+    });
 
     function renderHistorial(){
       const lista = document.getElementById("historialLista");
       const ordenados = [...movimientos].sort((a,b)=>b.creado-a.creado);
       lista.innerHTML = ordenados.length ? ordenados.map(histRow).join("") : '<div class="empty">Sin movimientos todavía.</div>';
-      wireDeleteButtons(lista);
     }
 
     function escapeHtml(s){
@@ -1087,27 +1092,31 @@
           </div>
         </div>
       `).join("") : '<div class="empty">No hay servicios cargados.</div>';
-
-      lista.querySelectorAll(".servicio-amount").forEach(inp=>{
-        inp.addEventListener("change", ()=>{
-          updateServicioMonto(inp.dataset.id, inp.value);
-        });
-      });
-      lista.querySelectorAll(".pay-toggle").forEach(btn=>{
-        btn.addEventListener("click", ()=>{
-          const s = servicios.find(x=>x.id===btn.dataset.id);
-          if(!s) return;
-          if(!s.pagado) marcarServicioPagado(s);
-          else reabrirServicio(s);
-        });
-      });
-      lista.querySelectorAll(".del-servicio").forEach(btn=>{
-        btn.addEventListener("click", ()=>{
-          deleteServicio(btn.dataset.id);
-        });
-      });
       renderServiciosResumen();
     }
+
+    // Listeners fijos sobre el contenedor de servicios (no se recrean en
+    // cada render).
+    const serviciosListaEl = document.getElementById("serviciosLista");
+    serviciosListaEl.addEventListener("change", e=>{
+      const inp = e.target.closest(".servicio-amount");
+      if(!inp) return;
+      updateServicioMonto(inp.dataset.id, inp.value);
+    });
+    serviciosListaEl.addEventListener("click", e=>{
+      const payBtn = e.target.closest(".pay-toggle");
+      if(payBtn){
+        const s = servicios.find(x=>x.id===payBtn.dataset.id);
+        if(!s) return;
+        if(!s.pagado) marcarServicioPagado(s);
+        else reabrirServicio(s);
+        return;
+      }
+      const delBtn = e.target.closest(".del-servicio");
+      if(delBtn){
+        deleteServicio(delBtn.dataset.id);
+      }
+    });
 
     function renderServiciosResumen(){
       const total = servicios.reduce((s,x)=>s+(parseFloat(x.monto)||0),0);
@@ -1154,15 +1163,15 @@
         </div>
       `).join("") : '<div class="empty">Todavía no registraste pagos.</div>';
 
-      pagosLista.querySelectorAll(".hist-del").forEach(btn=>{
-        btn.addEventListener("click", ()=>{
-          deletePagoTarjeta(btn.dataset.id);
-          showToast("Pago eliminado");
-        });
-      });
-
       document.getElementById("pagosTarjetaResumen").textContent = "Total pagado: " + fmtMoney(totalPagos);
     }
+
+    document.getElementById("pagosTarjetaLista").addEventListener("click", e=>{
+      const btn = e.target.closest(".hist-del");
+      if(!btn) return;
+      deletePagoTarjeta(btn.dataset.id);
+      showToast("Pago eliminado");
+    });
 
     // ---------- Export CSV ----------
     document.getElementById("btnExport").addEventListener("click", ()=>{
