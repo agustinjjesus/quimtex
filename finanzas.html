@@ -770,6 +770,7 @@
     // ---------- Forms ----------
     document.getElementById("formIngreso").addEventListener("submit", function(e){
       e.preventDefault();
+      if(document.activeElement) document.activeElement.blur();
       const monto = parseFloat(document.getElementById("ingMonto").value);
       if(!monto || monto <= 0){ showToast("Ingresá un monto válido"); return; }
       const mov = {
@@ -791,6 +792,7 @@
 
     document.getElementById("formGasto").addEventListener("submit", function(e){
       e.preventDefault();
+      if(document.activeElement) document.activeElement.blur();
       const monto = parseFloat(document.getElementById("gasMonto").value);
       if(!monto || monto <= 0){ showToast("Ingresá un monto válido"); return; }
       const mov = {
@@ -812,6 +814,7 @@
 
     document.getElementById("formSaldoTarjeta").addEventListener("submit", function(e){
       e.preventDefault();
+      if(document.activeElement) document.activeElement.blur();
       const monto = parseFloat(document.getElementById("tarjetaSaldoInput").value);
       if(monto === "" || isNaN(monto) || monto < 0){ showToast("Ingresá un saldo válido"); return; }
       updateSaldoTarjeta(monto);
@@ -821,6 +824,7 @@
 
     document.getElementById("formPagoTarjeta").addEventListener("submit", function(e){
       e.preventDefault();
+      if(document.activeElement) document.activeElement.blur();
       const monto = parseFloat(document.getElementById("pagoTarjetaMonto").value);
       if(!monto || monto <= 0){ showToast("Ingresá un monto válido"); return; }
       const pago = {
@@ -1127,6 +1131,7 @@
 
     document.getElementById("btnAddServicio").addEventListener("click", ()=>{
       const input = document.getElementById("nuevoServicioNombre");
+      if(document.activeElement) document.activeElement.blur();
       const nombre = input.value.trim();
       if(!nombre) return;
       addServicio(nombre);
