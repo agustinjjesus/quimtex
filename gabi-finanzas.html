@@ -543,6 +543,7 @@
   // ---------- Forms ----------
   document.getElementById("formIngreso").addEventListener("submit", function(e){
     e.preventDefault();
+    if(document.activeElement) document.activeElement.blur();
     const monto = parseFloat(document.getElementById("ingMonto").value);
     if(!monto || monto <= 0){ showToast("Ingresá un monto válido"); return; }
     movimientos.push({
@@ -566,6 +567,7 @@
 
   document.getElementById("formGasto").addEventListener("submit", function(e){
     e.preventDefault();
+    if(document.activeElement) document.activeElement.blur();
     const monto = parseFloat(document.getElementById("gasMonto").value);
     if(!monto || monto <= 0){ showToast("Ingresá un monto válido"); return; }
     movimientos.push({
@@ -775,6 +777,7 @@
 
   document.getElementById("btnAddServicio").addEventListener("click", ()=>{
     const input = document.getElementById("nuevoServicioNombre");
+    if(document.activeElement) document.activeElement.blur();
     const nombre = input.value.trim();
     if(!nombre) return;
     servicios.push({id:uid(), nombre, pagado:false, monto:"", mesRef: currentMonthKey()});
