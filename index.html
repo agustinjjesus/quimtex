@@ -557,6 +557,8 @@ function setPagoEstado(v){
 }
 let prodId=0;
 let autoSyncTimer=null;
+let syncing=false;
+let lastSaveAt=0;
 
 // ── UTILS ──
 function fmt(n){return '$'+Number(n||0).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});}
@@ -627,6 +629,7 @@ async function cloudLoad(){
 
 async function cloudSave(){
   if(!BIN_ID||!API_KEY)return;
+  syncing=true;
   setSyncStatus('syncing');
   localStorage.setItem('qx_bk_v',JSON.stringify(ventas));
   localStorage.setItem('qx_bk_d',JSON.stringify(ventas_deudores));
@@ -635,6 +638,8 @@ async function cloudSave(){
     await fetch(JBURL(),{method:'PUT',headers:JBHDR(),body:JSON.stringify({ventas,deudores:ventas_deudores,intercambios})});
     setSyncStatus('ok');
   }catch{setSyncStatus('error');}
+  lastSaveAt=Date.now();
+  syncing=false;
 }
 
 // Reemplaza el save() anterior — guarda ambas listas juntas
@@ -644,6 +649,7 @@ function save(){cloudSave();}
 function startAutoSync(){
   if(autoSyncTimer)clearInterval(autoSyncTimer);
   autoSyncTimer=setInterval(async()=>{
+    if(syncing||Date.now()-lastSaveAt<5000)return;
     await cloudLoad();
     refreshCurrentPage();
   },30000);
