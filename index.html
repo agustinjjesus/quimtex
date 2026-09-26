@@ -155,7 +155,7 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 .mtitle{font-family:var(--fh);font-size:17px;font-weight:800;margin-bottom:14px;}
 .mclose{float:right;background:var(--surface2);border:none;color:var(--muted);width:26px;height:26px;border-radius:50%;font-size:14px;cursor:pointer;line-height:26px;}
 
-.toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%);background:var(--accent2);color:#0f1117;font-weight:700;font-size:13px;border-radius:30px;padding:8px 20px;z-index:300;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;}
+.toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%);background:var(--accent2);color:#0f1117;font-weight:700;font-size:13px;border-radius:16px;padding:10px 18px;z-index:300;opacity:0;transition:opacity .3s;pointer-events:none;max-width:88vw;white-space:normal;text-align:center;line-height:1.4;}
 .toast.show{opacity:1;}
 
 .pill-group{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
@@ -574,10 +574,10 @@ function padRemito(input,len){
 }
 function padRemitoBlur(input,len){input.value=padVal(input.value,len);}
 
-function toast(msg,color){
+function toast(msg,color,dur){
   const t=document.getElementById('toast');
   t.style.background=color||'var(--accent2)';t.style.color=color?'#fff':'#0f1117';
-  t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2400);
+  t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),dur||2400);
 }
 
 // ── SYNC STATUS ──
@@ -636,11 +636,16 @@ async function cloudSave(){
   localStorage.setItem('qx_bk_i',JSON.stringify(intercambios));
   try{
     const r=await fetch(JBURL(),{method:'PUT',headers:JBHDR(),body:JSON.stringify({ventas,deudores:ventas_deudores,intercambios})});
-    if(!r.ok)throw new Error('status '+r.status);
+    if(!r.ok){
+      let detalle=r.status+'';
+      try{const j=await r.json();if(j&&j.message)detalle+=' - '+j.message;}catch{}
+      throw new Error(detalle);
+    }
     setSyncStatus('ok');
   }catch(e){
     setSyncStatus('error');
-    toast('⚠️ No se pudo guardar en la nube. Revisá tu conexión y volvé a intentar.','var(--red)');
+    const detalle=(e&&e.message)?e.message:'sin conexión';
+    toast('⚠️ No se guardó en la nube ('+detalle+')','var(--red)',7000);
     console.warn('cloudSave error:',e);
   }
   lastSaveAt=Date.now();
