@@ -389,6 +389,13 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
     </div>
   </div>
 
+  <!-- HISTORIAL -->
+  <div id="page-historial" class="page">
+    <div class="stitle">Historial de meses anteriores</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.5">Las ventas de meses ya cerrados se guardan acá como PDF para no llenar el espacio de sincronización. El mes en curso siempre se puede ver en vivo en la pestaña Resumen.</div>
+    <div id="lista-historial"></div>
+  </div>
+
   <nav class="bottom-nav" id="bottom-nav"></nav>
 </div>
 
@@ -763,12 +770,14 @@ function entrarComo(rol){
       <div class="tab active" id="tab-hoy" onclick="showPage('hoy')">📅 DÍA</div>
       <div class="tab" id="tab-buscar" onclick="showPage('buscar')">🔍 BUSCAR</div>
       <div class="tab" id="tab-deudores" onclick="showPage('deudores')">📋 COBRANZAS</div>
-      <div class="tab" id="tab-intercambio" onclick="showPage('intercambio')">🔄 CASEROS</div>`;
+      <div class="tab" id="tab-intercambio" onclick="showPage('intercambio')">🔄 CASEROS</div>
+      <div class="tab" id="tab-historial" onclick="showPage('historial')">🗂️ HISTORIAL</div>`;
     document.getElementById('bottom-nav').innerHTML=`
       <div class="ni active" id="nav-hoy" onclick="showPage('hoy')"><div class="ni-icon">📅</div><div class="ni-lbl">DÍA</div></div>
       <div class="ni" id="nav-buscar" onclick="showPage('buscar')"><div class="ni-icon">🔍</div><div class="ni-lbl">BUSCAR</div></div>
       <div class="ni" id="nav-deudores" onclick="showPage('deudores')"><div class="ni-icon">📋</div><div class="ni-lbl">COBRANZAS</div></div>
-      <div class="ni" id="nav-intercambio" onclick="showPage('intercambio')"><div class="ni-icon">🔄</div><div class="ni-lbl">CASEROS</div></div>`;
+      <div class="ni" id="nav-intercambio" onclick="showPage('intercambio')"><div class="ni-icon">🔄</div><div class="ni-lbl">CASEROS</div></div>
+      <div class="ni" id="nav-historial" onclick="showPage('historial')"><div class="ni-icon">🗂️</div><div class="ni-lbl">HISTORIAL</div></div>`;
     document.getElementById('btn-nueva-venta').innerHTML=`<button class="btn btn-p" style="margin-bottom:8px" onclick="abrirModalVenta()">+ Registrar venta</button>`;
     document.getElementById('btn-cierre-caja').innerHTML=`<button class="btn btn-g" onclick="abrirCierreCaja()">🧾 Cierre de caja del día</button>`;
     document.getElementById('btn-nueva-deuda').innerHTML=`<button class="btn btn-p" onclick="abrirNuevaDeuda()">+ Registrar cobranza</button>`;
@@ -780,6 +789,7 @@ function entrarComo(rol){
       <div class="tab" id="tab-deudores" onclick="showPage('deudores')">📋 COBRANZAS</div>
       <div class="tab" id="tab-buscar" onclick="showPage('buscar')">🔍 BUSCAR</div>
       <div class="tab" id="tab-hoy" onclick="showPage('hoy')">📅 DÍA</div>
+      <div class="tab" id="tab-historial" onclick="showPage('historial')">🗂️ HISTORIAL</div>
       <div class="tab" id="tab-backup" onclick="showPage('backup')">💾 BACKUP</div>`;
     document.getElementById('bottom-nav').innerHTML=`
       <div class="ni active" id="nav-resumen" onclick="showPage('resumen')"><div class="ni-icon">📊</div><div class="ni-lbl">RESUMEN</div></div>
@@ -787,6 +797,7 @@ function entrarComo(rol){
       <div class="ni" id="nav-deudores" onclick="showPage('deudores')"><div class="ni-icon">📋</div><div class="ni-lbl">COBRANZAS</div></div>
       <div class="ni" id="nav-buscar" onclick="showPage('buscar')"><div class="ni-icon">🔍</div><div class="ni-lbl">BUSCAR</div></div>
       <div class="ni" id="nav-hoy" onclick="showPage('hoy')"><div class="ni-icon">📅</div><div class="ni-lbl">DÍA</div></div>
+      <div class="ni" id="nav-historial" onclick="showPage('historial')"><div class="ni-icon">🗂️</div><div class="ni-lbl">HISTORIAL</div></div>
       <div class="ni" id="nav-backup" onclick="showPage('backup')"><div class="ni-icon">💾</div><div class="ni-lbl">BACKUP</div></div>`;
     document.getElementById('btn-nueva-venta').innerHTML='';
     document.getElementById('btn-cierre-caja').innerHTML='';
@@ -808,6 +819,7 @@ function showPage(p){
   if(p==='deudores')renderDeudores();
   if(p==='resumen')renderResumen();
   if(p==='intercambio')renderIntercambio();
+  if(p==='historial')renderHistorial();
 }
 
 // ── MÉTODO PAGO ──
@@ -1297,8 +1309,32 @@ function maskCuit(el){
 
 
 // ── GENERADOR PDF MENSUAL ──
-function generarPDF(){
-  const mes=getMesSeleccionado();
+// ── HISTORIAL DE MESES ARCHIVADOS ──
+const HISTORIAL_MESES=[
+  {mes:'2026-08',label:'Agosto 2026',pdf:'historial/2026-08.pdf',ventas:135,total:20348467.70},
+  {mes:'2026-07',label:'Julio 2026',pdf:'historial/2026-07.pdf',ventas:130,total:13004448.00},
+  {mes:'2026-06',label:'Junio 2026',pdf:'historial/2026-06.pdf',ventas:136,total:22509609.00},
+  {mes:'2026-05',label:'Mayo 2026',pdf:'historial/2026-05.pdf',ventas:138,total:29524109.00},
+  {mes:'2026-04',label:'Abril 2026',pdf:'historial/2026-04.pdf',ventas:3,total:648479.30},
+  {mes:'2026-03',label:'Marzo 2026',pdf:'historial/2026-03.pdf',ventas:1,total:317000.00},
+  {mes:'2026-01',label:'Enero 2026',pdf:'historial/2026-01.pdf',ventas:3,total:423800.00},
+];
+function renderHistorial(){
+  const cont=document.getElementById('lista-historial');
+  if(!cont)return;
+  if(!HISTORIAL_MESES.length){cont.innerHTML='<div class="empty"><div class="eicon">🗂️</div>Todavía no hay meses archivados</div>';return;}
+  cont.innerHTML=HISTORIAL_MESES.map(m=>`
+    <div class="fcard" style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:15px">${m.label}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">${m.ventas} venta${m.ventas!==1?'s':''} · ${fmt(m.total)}</div>
+      </div>
+      <a class="btn btn-b" style="width:auto;padding:9px 16px;text-decoration:none" href="${m.pdf}" target="_blank">📄 Ver PDF</a>
+    </div>`).join('');
+}
+
+// ── REPORTE PDF ──
+function construirReportePDF(mes){
   const [py,pm]=mes.split('-');
   const mesRef=new Date(Number(py),Number(pm)-1,1);
   const vm=ventas.filter(v=>v.fecha.startsWith(mes));
@@ -1435,7 +1471,11 @@ ${deudoresPendPdf.length?`
 
 <div class="footer">Quimtex El Palomar · Reporte generado automáticamente</div>
 </body></html>`;
-
+  return html;
+}
+function generarPDF(){
+  const mes=getMesSeleccionado();
+  const html=construirReportePDF(mes);
   const win=window.open('','_blank');
   win.document.write(html);
   win.document.close();
