@@ -394,6 +394,12 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
     <div class="stitle">Historial de meses anteriores</div>
     <div style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.5">Las ventas de meses ya cerrados se guardan acá como PDF para no llenar el espacio de sincronización. El mes en curso siempre se puede ver en vivo en la pestaña Resumen.</div>
     <div id="lista-historial"></div>
+    <div class="stitle" style="margin-top:14px">Liberar espacio en la nube</div>
+    <div class="fcard">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5">Si dejó de guardar por el límite de espacio gratis de JSONBin (100kb), tocá este botón: archiva las ventas de meses anteriores al actual (ya están a salvo arriba como PDF) y deja solo el mes en curso sincronizándose.</div>
+      <button class="btn btn-o" style="margin-bottom:6px" onclick="archivarMesesAnteriores()">🧹 Archivar meses anteriores</button>
+      <div id="status-archivar" style="font-size:12px;color:var(--accent2);min-height:16px;margin-top:4px"></div>
+    </div>
   </div>
 
   <nav class="bottom-nav" id="bottom-nav"></nav>
@@ -1331,6 +1337,24 @@ function renderHistorial(){
       </div>
       <a class="btn btn-b" style="width:auto;padding:9px 16px;text-decoration:none" href="${m.pdf}" target="_blank">📄 Ver PDF</a>
     </div>`).join('');
+}
+function archivarMesesAnteriores(){
+  const mesActual=hoy().slice(0,7);
+  const esViejo=v=>v.fecha&&v.fecha.length>=7&&v.fecha<mesActual+'-01';
+  const aArchivar=ventas.filter(esViejo);
+  const aQuedar=ventas.filter(v=>!esViejo(v));
+  const st=document.getElementById('status-archivar');
+  if(!aArchivar.length){
+    st.textContent='✅ No hay ventas de meses anteriores para archivar.';
+    return;
+  }
+  const meses=[...new Set(aArchivar.map(v=>v.fecha.slice(0,7)))].sort();
+  if(!confirm(`Se van a sacar de la sincronización ${aArchivar.length} ventas de estos meses: ${meses.join(', ')}.\n\nAsegurate de que ya estén en 🗂️ Historial como PDF antes de continuar.\n\n¿Continuar?`))return;
+  ventas=aQuedar;
+  save();
+  st.textContent=`✅ Archivadas ${aArchivar.length} ventas. Quedan ${ventas.length} sincronizándose.`;
+  toast('✅ Meses anteriores archivados');
+  renderHoy();renderUltimoCargado();
 }
 
 // ── REPORTE PDF ──
